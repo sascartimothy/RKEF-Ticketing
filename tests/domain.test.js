@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { excelSerial, dateFromSerial, validTime, localTime } from '../docs/js/time-date.js';
-import { parseWA, sourceDigest } from '../docs/js/wa-parser.js';
-import { exportLine, exportWA, potentialDuplicates, filterRecords } from '../docs/js/wa-exporter.js';
-import { validateRecord } from '../docs/js/validation.js';
-import { conflicts, deriveMappings, mappingKey } from '../docs/js/master-data.js';
-import { validateBackup, STORES } from '../docs/js/database.js';
+import { excelSerial, dateFromSerial, validTime, localTime } from '../src/js/time-date.js';
+import { parseWA, sourceDigest } from '../src/js/wa-parser.js';
+import { exportLine, exportWA, potentialDuplicates, filterRecords } from '../src/js/wa-exporter.js';
+import { validateRecord } from '../src/js/validation.js';
+import { conflicts, deriveMappings, mappingKey } from '../src/js/master-data.js';
+import { validateBackup, STORES } from '../src/js/database.js';
 const columns = ['46315','SAP_1014','6','TS_13','L20_S71','','5','SCZ-1189','ZHN LINE 25','06.59','BDM'];
 const line = columns.join('\t');
 const record = { ...parseWA(line)[0].record, id: 'one', checker: 'TEST CHECKER', shift: 'Day', origin: 'local' };
@@ -35,7 +35,7 @@ test('Excel calendar serial deterministic, leap dates, and timezone independent'
   for (const d of ['1900-01-01','1900-02-28','1900-03-01','2024-02-29','2026-12-31','9999-12-31']) assert.equal(dateFromSerial(excelSerial(d)),d);
   for (const bad of ['2026-02-29','2026-13-01','2026-10-2','1899-12-31']) assert.throws(()=>excelSerial(bad));
   for (const zone of ['UTC','Asia/Makassar','America/Los_Angeles']) {
-    const result=execFileSync(process.execPath,['--input-type=module','-e',"import {excelSerial} from './docs/js/time-date.js'; console.log(excelSerial('2026-10-20'))"],{env:{...process.env,TZ:zone},encoding:'utf8'}).trim();
+    const result=execFileSync(process.execPath,['--input-type=module','-e',"import {excelSerial} from './src/js/time-date.js'; console.log(excelSerial('2026-10-20'))"],{env:{...process.env,TZ:zone},encoding:'utf8'}).trim();
     assert.equal(result,'46315');
   }
 });

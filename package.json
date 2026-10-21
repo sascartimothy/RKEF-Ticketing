@@ -5,9 +5,16 @@
   "type": "module",
   "description": "Local-first RKEF Ticketing PWA with Destination-only Apps Script bridge",
   "scripts": {
-    "test": "node tests/test_apps_script.cjs && node --test tests/*.test.js && node scripts/check-workspace.cjs",
-    "dev": "node scripts/serve-docs.cjs",
+    "build": "node scripts/build.cjs",
+    "pretest": "npm run build",
+    "test": "node tests/test_apps_script.cjs && node --test tests/*.test.js && node scripts/check-workspace.cjs && node scripts/check-docs.cjs",
+    "check:docs": "node scripts/check-docs.cjs",
+    "dev": "node scripts/serve-app.cjs",
+    "preview": "node scripts/serve-app.cjs --preview",
     "icons": "node scripts/generate-icons.cjs",
     "test:browser": "node scripts/browser-test.cjs"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

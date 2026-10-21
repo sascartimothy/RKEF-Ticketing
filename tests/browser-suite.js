@@ -127,6 +127,8 @@
   set($('#entry-form'),{dtNo:'UNSAVED_TEST',time:'07.17'});input($('#entry-form').elements.time);await flushDraft();
   assert(document.documentElement.scrollWidth<=360,'360px layout overflows horizontally');
   await navigator.serviceWorker.ready;
+  const registration = await navigator.serviceWorker.getRegistration();
+  equal(registration.scope, location.origin + '/RKEF-Ticketing/', 'unchanged Pages worker scope');
   await until(()=>!!navigator.serviceWorker.controller,'service worker control');
   const cache=await caches.open('rkef-shell-v1');const entries=await cache.keys();
   assert(entries.length>20,'offline shell incomplete');assert(entries.every(r=>r.url.startsWith(location.origin+'/RKEF-Ticketing/')),'external responses cached');

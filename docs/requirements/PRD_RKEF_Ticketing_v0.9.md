@@ -97,7 +97,7 @@ Kolom ke-6 sengaja kosong. Kode tanggal `46315` tanpa suffix `-001`. Nama timban
 | GitHub repository tersedia | VERIFIED |
 | GitHub repository menerima commit dari connector | BELUM: error HTTP 403 |
 | GitHub Pages aktif | BELUM DIVERIFIKASI |
-| PWA tiga halaman dibangun lokal | SELESAI lokal; lihat README dan LOCAL_TEST_RESULTS.md |
+| PWA tiga halaman dibangun lokal | SELESAI lokal; lihat [README](../../README.md) dan [laporan pengujian](../testing/LOCAL_TEST_RESULTS.md) |
 | Parser/export/date/bridge frontend | PASS tes Node lokal; Google services mock |
 | IndexedDB/UI/offline subpath | PASS Chrome desktop headless lokal; bukan Android/live |
 

@@ -5,5 +5,5 @@
   "files.autoSave": "off",
   "files.trimTrailingWhitespace": true,
   "editor.formatOnSave": false,
-  "liveServer.settings.root": "/docs"
+  "liveServer.settings.root": "/src"
 }

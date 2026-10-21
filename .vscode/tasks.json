@@ -2,6 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "RKEF: build src to dist (no deployment)",
+      "type": "shell",
+      "command": "npm run build",
+      "problemMatcher": []
+    },
+    {
       "label": "RKEF: test frontend and Apps Script contract (mock)",
       "type": "shell",
       "command": "npm run test",
