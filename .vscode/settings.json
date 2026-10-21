@@ -4,6 +4,5 @@
   "editor.insertSpaces": true,
   "files.autoSave": "off",
   "files.trimTrailingWhitespace": true,
-  "editor.formatOnSave": false,
-  "liveServer.settings.root": "/src"
+  "editor.formatOnSave": false
 }

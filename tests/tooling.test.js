@@ -5,80 +5,25 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { build, FRONTEND_FILES } = require('../scripts/build.cjs');
+const { FRONTEND_FILES } = require('../scripts/public-files.cjs');
 const { createServer } = require('../scripts/serve-app.cjs');
 const project = path.resolve(import.meta.dirname, '..');
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rkef-build-test-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rkef-server-test-'));
   t.after(() => {
     const resolved = path.resolve(root);
     assert.equal(path.dirname(resolved), fs.realpathSync(os.tmpdir()));
-    assert.ok(path.basename(resolved).startsWith('rkef-build-test-'));
+    assert.ok(path.basename(resolved).startsWith('rkef-server-test-'));
     fs.rmSync(resolved, { recursive: true, force: true });
   });
-  fs.cpSync(path.join(project, 'src'), path.join(root, 'src'), { recursive: true });
+  for (const name of FRONTEND_FILES) {
+    const target = path.join(root, name);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(path.join(project, name), target);
+  }
   return root;
 }
-
-function snapshot(root) {
-  function walk(directory) {
-    return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory()
-      ? walk(path.join(directory, entry.name)) : [path.join(directory, entry.name)]);
-  }
-  const output = path.join(root, 'dist');
-  return Object.fromEntries(walk(output).sort().map(file => [path.relative(output, file), fs.readFileSync(file).toString('base64')]));
-}
-
-test('build is reproducible, cleans generated output, excludes private/dev files and preserves other folders', t => {
-  const root = fixture(t);
-  for (const folder of ['docs', 'private-data', 'apps-script', 'backups', 'tests']) {
-    fs.mkdirSync(path.join(root, folder));
-    fs.writeFileSync(path.join(root, folder, 'sentinel.txt'), 'keep');
-  }
-  for (const name of ['.env', 'backup.json', 'debug.test.js', 'assets/secret.key', 'js/app.js.bak']) fs.writeFileSync(path.join(root, 'src', name), 'DO NOT PUBLISH');
-  assert.equal(build({ root }).changed, true);
-  const first = snapshot(root);
-  assert.equal(Object.keys(first).length, FRONTEND_FILES.length + 1);
-  assert.equal(build({ root }).changed, false);
-  assert.deepEqual(snapshot(root), first);
-  fs.writeFileSync(path.join(root, 'dist', 'obsolete.js'), 'stale');
-  fs.mkdirSync(path.join(root, 'dist', 'old-empty'));
-  assert.equal(build({ root }).changed, true);
-  assert.deepEqual(snapshot(root), first);
-  for (const folder of ['docs', 'private-data', 'apps-script', 'backups', 'tests']) assert.equal(fs.readFileSync(path.join(root, folder, 'sentinel.txt'), 'utf8'), 'keep');
-});
-
-test('missing source fails before modifying a valid deployment output', t => {
-  const root = fixture(t);
-  build({ root });
-  const before = snapshot(root);
-  fs.unlinkSync(path.join(root, 'src', 'config.js'));
-  assert.throws(() => build({ root }), /ENOENT/);
-  assert.deepEqual(snapshot(root), before);
-});
-
-test('build refuses output/source junctions and preserves files outside generated output', t => {
-  const root = fixture(t);
-  const outside = path.join(root, 'private-data');
-  fs.mkdirSync(outside);
-  fs.writeFileSync(path.join(outside, 'keep.txt'), 'keep');
-  const output = path.join(root, 'dist');
-  fs.symlinkSync(outside, output, process.platform === 'win32' ? 'junction' : 'dir');
-  assert.throws(() => build({ root }), /symbolic link\/junction/);
-  fs.unlinkSync(output);
-  build({ root });
-  const nested = path.join(output, 'linked');
-  fs.symlinkSync(outside, nested, process.platform === 'win32' ? 'junction' : 'dir');
-  assert.throws(() => build({ root }), /symbolic link\/junction/);
-  fs.unlinkSync(nested);
-  const source = path.join(root, 'src', 'assets');
-  fs.renameSync(source, path.join(root, 'original-assets'));
-  fs.symlinkSync(outside, source, process.platform === 'win32' ? 'junction' : 'dir');
-  assert.throws(() => build({ root }), /symbolic link\/junction/);
-  fs.unlinkSync(source);
-  assert.equal(fs.readFileSync(path.join(outside, 'keep.txt'), 'utf8'), 'keep');
-});
 
 async function start(t, options) {
   const server = createServer(options);
@@ -87,34 +32,94 @@ async function start(t, options) {
   return `http://127.0.0.1:${server.address().port}`;
 }
 
-test('dev serves fresh source after edits and rejects build failures instead of stale output', async t => {
+test('dev serves root edits immediately without generating or modifying other application files', async t => {
   const root = fixture(t);
+  const before = new Map(FRONTEND_FILES.map(name => [name, fs.readFileSync(path.join(root, name))]));
   const origin = await start(t, { root });
   const redirect = await fetch(origin + '/RKEF-Ticketing', { redirect: 'manual' });
   assert.equal(redirect.status, 302);
   assert.equal(redirect.headers.get('location'), '/RKEF-Ticketing/');
   for (const base of ['/', '/RKEF-Ticketing/']) assert.match(await (await fetch(origin + base)).text(), /RKEF Ticketing/);
-  fs.appendFileSync(path.join(root, 'src', 'styles.css'), '\n/* source edit */');
-  const response = await fetch(origin + '/RKEF-Ticketing/styles.css');
-  assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.match(await response.text(), /source edit/);
+  const edits = { 'styles.css': '\n/* root edit */', 'js/app.js': '\n/* root edit */', 'index.html': '\n<!-- root edit -->' };
+  for (const [name, edit] of Object.entries(edits)) {
+    fs.appendFileSync(path.join(root, name), edit);
+    const response = await fetch(origin + '/RKEF-Ticketing/' + name);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.match(await response.text(), /root edit/);
+  }
   const worker = await (await fetch(origin + '/RKEF-Ticketing/sw.js')).text();
   assert.match(worker, /skipWaiting/);
   assert.doesNotMatch(worker, /caches\.open/);
-  assert.equal(fs.readFileSync(path.join(root, 'dist', 'sw.js'), 'utf8'), fs.readFileSync(path.join(root, 'src', 'sw.js'), 'utf8'));
-  for (const url of ['/src/config.js', '/docs/README.md', '/RKEF-Ticketing/docs/testing/LOCAL_TEST_RESULTS.md', '/tests/browser-suite.js', '/RKEF-Ticketing/%2e%2e%2fpackage.json', '/RKEF-Ticketing/js%5capp.js', '/private-data/backup.json']) assert.equal((await fetch(origin + url)).status, 404);
-  fs.unlinkSync(path.join(root, 'src', 'config.js'));
-  assert.equal((await fetch(origin + '/RKEF-Ticketing/')).status, 500);
+  for (const [name, content] of before) {
+    if (!(name in edits)) assert.deepEqual(fs.readFileSync(path.join(root, name)), content, name);
+  }
+  assert.deepEqual(fs.readdirSync(root).sort(), [...new Set(FRONTEND_FILES.map(name => name.split('/')[0]))].sort());
+  fs.unlinkSync(path.join(root, 'config.js'));
+  assert.equal((await fetch(origin + '/RKEF-Ticketing/config.js')).status, 404);
+  assert.equal((await fetch(origin + '/RKEF-Ticketing/')).status, 200);
 });
 
-test('preview builds at startup and serves all deployment bytes with production PWA paths and MIME types', async t => {
+test('dev and preview deny existing private, development, traversal, backup and unknown files', async t => {
+  const root = fixture(t);
+  const secretFiles = ['private-data/backup.json', 'docs/README.md', 'tests/browser-suite.js', 'scripts/serve-app.cjs',
+    'apps-script/Code.gs', 'backups/ritase.json', 'exports/ritase.tsv', '.git/config', '.env', 'credentials.json',
+    'package.json', 'README.md', 'assets/secret.key', 'js/app.js.bak', 'assets/extra.svg'];
+  for (const name of secretFiles) {
+    fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
+    fs.writeFileSync(path.join(root, name), 'PRIVATE_SENTINEL');
+  }
+  const suspicious = ['%2e%2e%2fprivate-data/backup.json', 'js%5capp.js', 'assets/%2e%2e%5c.env', '%252e%252e%252f.env',
+    'assets/', 'js/', 'unknown.js', 'src/config.js', 'dist/index.html'];
+  for (const development of [true, false]) {
+    const origin = await start(t, { root, development });
+    for (const base of ['/', '/RKEF-Ticketing/']) {
+      for (const name of [...secretFiles, ...suspicious]) {
+        const response = await fetch(origin + base + name);
+        assert.equal(response.status, 404, base + name);
+        assert.doesNotMatch(await response.text(), /PRIVATE_SENTINEL/);
+      }
+    }
+    assert.equal((await fetch(origin + '/RKEF-Ticketing/%E0%A4%A')).status, 400);
+    assert.equal((await fetch(origin + '/RKEF-Ticketing/config.js', { method: 'POST' })).status, 405);
+  }
+  for (const name of secretFiles) assert.equal(fs.readFileSync(path.join(root, name), 'utf8'), 'PRIVATE_SENTINEL');
+});
+
+test('server refuses directory junctions and file symlinks at allowlisted paths', async t => {
+  const root = fixture(t);
+  const outside = path.join(root, 'private-data');
+  fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(outside, 'icon.svg'), 'PRIVATE_SENTINEL');
+  fs.renameSync(path.join(root, 'assets'), path.join(root, 'original-assets'));
+  fs.symlinkSync(outside, path.join(root, 'assets'), process.platform === 'win32' ? 'junction' : 'dir');
+  for (const development of [true, false]) {
+    const origin = await start(t, { root, development });
+    assert.equal((await fetch(origin + '/RKEF-Ticketing/assets/icon.svg')).status, 404);
+    assert.equal((await fetch(origin + '/RKEF-Ticketing/index.html')).status, 200);
+  }
+  fs.unlinkSync(path.join(root, 'assets'));
+  const fileLink = path.join(root, 'config.js');
+  fs.unlinkSync(fileLink);
+  // File symlinks may require Windows Developer Mode; junction coverage is mandatory.
+  try { fs.symlinkSync(path.join(outside, 'icon.svg'), fileLink, 'file'); }
+  catch (error) { if (error.code !== 'EPERM') throw error; t.diagnostic('File symlink unavailable (Windows EPERM); junction denial verified.'); return; }
+  const origin = await start(t, { root });
+  assert.equal((await fetch(origin + '/RKEF-Ticketing/config.js')).status, 404);
+});
+
+test('preview serves every root application byte with production worker and correct MIME types', async t => {
   const root = fixture(t);
   const origin = await start(t, { root, development: false });
-  for (const name of [...FRONTEND_FILES, '.nojekyll']) {
+  for (const name of FRONTEND_FILES) {
     const response = await fetch(origin + '/RKEF-Ticketing/' + name);
     assert.equal(response.status, 200, name);
-    assert.deepEqual(Buffer.from(await response.arrayBuffer()), fs.readFileSync(path.join(root, 'dist', name)), name);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), fs.readFileSync(path.join(root, name)), name);
     if (name.endsWith('.js')) assert.match(response.headers.get('content-type'), /text\/javascript/);
     if (name.endsWith('.webmanifest')) assert.match(response.headers.get('content-type'), /application\/manifest\+json/);
+    const head = await fetch(origin + '/RKEF-Ticketing/' + name, { method: 'HEAD' });
+    assert.equal(head.status, 200);
+    assert.equal(await head.text(), '');
   }
+  fs.appendFileSync(path.join(root, 'styles.css'), '\n/* preview edit */');
+  assert.match(await (await fetch(origin + '/RKEF-Ticketing/styles.css')).text(), /preview edit/);
 });

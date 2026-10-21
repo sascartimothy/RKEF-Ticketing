@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DestinationBridge, endpointURL, refreshDestinationCache, validateList } from '../src/js/apps-script-api.js';
+import { DestinationBridge, endpointURL, refreshDestinationCache, validateList } from '../js/apps-script-api.js';
 const url='https://script.google.com/macros/s/test_endpoint/exec';
 const req='pwa_0123456789abcdef';
 const row={destination_id:'DST-test',destination_name:'TEST DESTINATION',request_id:req};

@@ -5,8 +5,6 @@
   "type": "module",
   "description": "Local-first RKEF Ticketing PWA with Destination-only Apps Script bridge",
   "scripts": {
-    "build": "node scripts/build.cjs",
-    "pretest": "npm run build",
     "test": "node tests/test_apps_script.cjs && node --test tests/*.test.js && node scripts/check-workspace.cjs && node scripts/check-docs.cjs",
     "check:docs": "node scripts/check-docs.cjs",
     "dev": "node scripts/serve-app.cjs",

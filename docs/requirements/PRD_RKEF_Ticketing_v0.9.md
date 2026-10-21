@@ -7,7 +7,7 @@
 ## 1. Keputusan final arsitektur v1
 
 - PWA **HTML, CSS, JavaScript** murni; tiga halaman utama **Setup, Operasional, Report**.
-- Hosting GitHub Pages dari repo `https://github.com/sascartimothy/RKEF-Ticketing`, rencana branch `main` folder `/docs`.
+- Hosting GitHub Pages dari repo `https://github.com/sascartimothy/RKEF-Ticketing`, keputusan final owner 21 Oktober 2026: branch `main`, folder `/ (root)`, `.nojekyll` root, tanpa custom deployment Actions. Frontend langsung di root tanpa pipeline build; pengaturan hosting dan publikasi tetap tindakan owner.
 - Tidak ada Firebase atau backend ritase: dua HP menyimpan ritase pada **IndexedDB lokal masing-masing**.
 - Sinkronisasi ritase **manual melalui teks WhatsApp** pada shift handover. Tidak ada live sharing ritase antar-HP.
 - **Google Sheets hanya MASTER_DESTINATION**: pengguna menambah Destination dari PWA dan data muncul di kedua HP saat sinkronisasi berikutnya.
@@ -109,7 +109,7 @@ Owner mengizinkan implementasi penuh lokal sebelum gate di bawah selesai. Daftar
 - [ ] Deploy Apps Script anon dengan `execute as me`.
 - [ ] Pengujian browser nyata GET dan POST berhasil dari GitHub Pages, termasuk dua HP dan mode tanpa login Google.
 - [ ] Live readback dapat membedakan request berhasil dan gagal dengan jelas.
-- [ ] Repository memiliki folder `/docs` dan GitHub Pages berjalan.
+- [ ] Frontend root dipublikasikan owner melalui Pages branch `main` + `/ (root)` dan URL aplikasi berjalan; `docs/` khusus dokumentasi.
 
 **GATE B — Operasional**
 - [ ] Operator mengisi/memeriksa nama/kode timbangan dan checker di daftar offline lokal.

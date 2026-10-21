@@ -4,11 +4,11 @@
 
 ## Referensi existing
 
-- Endpoint dipertahankan di source publik `src/config.js`; `npm run build` menyalinnya ke `dist/config.js`. Jangan mengedit generated output secara manual.
+- Endpoint dipertahankan di `config.js` pada root aplikasi; file ini konfigurasi publik tanpa rahasia.
 - Sheet referensi: https://docs.google.com/spreadsheets/d/1iTs3-TJT8xCXWVUANEtk6MOxP25HjqkH-JHdTKnY1kE/edit
 - Tab `MASTER_DESTINATION`, kolom A:H: `destination_id`, `destination_name`, `is_active`, `source`, `created_at_utc`, `updated_at_utc`, `updated_by`, `request_id`.
-- Salinan backend `apps-script/Code.gs` dan manifest tidak diubah oleh build frontend ini. Menyimpan file lokal tidak memperbarui versi deployment Google.
-- Output frontend berada di `dist/`, dokumentasi di `docs/`. Konfigurasi Pages lama `/docs` belum disesuaikan; lihat [batas hosting](../architecture/PROJECT_STRUCTURE.md#hosting).
+- Salinan backend `apps-script/Code.gs` dan manifest tidak diubah oleh restrukturisasi frontend ini. Menyimpan file lokal tidak memperbarui versi deployment Google.
+- Frontend berada langsung di root, dokumentasi di `docs/`, tanpa build. Keputusan Pages final: branch `main` + `/ (root)`, `.nojekyll` root, tanpa custom deployment Actions; lihat [batas hosting](../architecture/PROJECT_STRUCTURE.md#hosting).
 - Hosting rencana: https://sascartimothy.github.io/RKEF-Ticketing/. Status live tidak diperiksa dalam sesi build lokal.
 
 ## Kontrak bridge yang digunakan

@@ -21,6 +21,6 @@ for (const size of [192,512]) {
   }
   const header=Buffer.alloc(13);header.writeUInt32BE(size,0);header.writeUInt32BE(size,4);header[8]=8;header[9]=6;
   const png=Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',zlib.deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
-  fs.writeFileSync(path.join(__dirname,`../src/assets/icon-${size}.png`),png);
+  fs.writeFileSync(path.join(__dirname,`../assets/icon-${size}.png`),png);
   console.log(`Created local icon ${size} × ${size}`);
 }

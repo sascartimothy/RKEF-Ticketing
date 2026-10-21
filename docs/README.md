@@ -1,6 +1,6 @@
 # Dokumentasi RKEF Ticketing
 
-`docs/` hanya berisi dokumentasi proyek. Source aplikasi ada di `src/`, production build di `dist/`, backend di `apps-script/`, tes di `tests/`, dan tooling di `scripts/`. Path dalam code span adalah relatif terhadap root repository kecuali disebut lain.
+`docs/` hanya berisi dokumentasi proyek. Aplikasi frontend ada langsung di root (`index.html`, `styles.css`, `config.js`, manifest, worker, `js/`, `assets/`), backend di `apps-script/`, tes di `tests/`, dan tooling di `scripts/`. Tidak ada pipeline build atau folder output aplikasi. Path dalam code span adalah relatif terhadap root repository kecuali disebut lain.
 
 | Kategori | Dokumen | Fungsi |
 |---|---|---|
@@ -9,7 +9,7 @@
 | Development | [Setup VS Code dan development](development/SETUP_VSCODE_GITHUB.md) | Perintah lokal dan konfigurasi editor |
 | Development | [Apps Script dan hosting](development/SETUP_APPS_SCRIPT_GITHUB.md) | Kontrak bridge, konfigurasi publik, dan gate integrasi |
 | Testing | [Hasil pengujian lokal](testing/LOCAL_TEST_RESULTS.md) | Bukti tes otomatis, QA, dan batas verifikasi |
-| Architecture | [Struktur proyek](architecture/PROJECT_STRUCTURE.md) | Pemisahan source/build/docs, storage, dan batas hosting |
+| Architecture | [Struktur proyek](architecture/PROJECT_STRUCTURE.md) | Aplikasi root, dokumentasi, storage, dan batas hosting |
 
 [README repository](../README.md) tetap entry point GitHub. [AGENTS.md](../AGENTS.md) tetap instruksi coding agent di root. Tidak ada dokumen root lain yang perlu dipertahankan atau diduplikasi.
 

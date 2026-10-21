@@ -32,7 +32,7 @@ async function ready() {
 }
 (async()=>{
   try {
-    // Own a fresh production-output server on a free port. Never reuse dev/stale output.
+    // Own a root-file server with the production worker on a free port.
     server = createServer({ root, development: false });
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     base = `http://127.0.0.1:${server.address().port}/RKEF-Ticketing/`;
