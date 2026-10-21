@@ -51,7 +51,13 @@ async function ready() {
       if(msg.method==='Fetch.requestPaused') {
         const requestId=msg.params.requestId;
         const local=msg.params.request.url.startsWith(new URL(base).origin+'/');
-        cdp(local?'Fetch.continueRequest':'Fetch.failRequest',local?{requestId}:{requestId,errorReason:'BlockedByClient'}).catch(error=>errors.push(error.message));
+        cdp(local?'Fetch.continueRequest':'Fetch.failRequest',local?{requestId}:{requestId,errorReason:'BlockedByClient'}).catch(error=>{
+          // Navigation/reload can cancel an intercepted request before CDP handles it.
+          // An expired ID cannot resume a request. Keep every other protocol error
+          // and every Runtime.exceptionThrown fatal; network blocking also remains enabled.
+          if (/^Invalid InterceptionId\.?$/.test(error.message)) console.log('INFO canceled request interception expired during navigation');
+          else errors.push(error.message);
+        });
       }
     };
     await cdp('Runtime.enable');await cdp('Page.enable');await cdp('Network.enable');
@@ -65,6 +71,10 @@ async function ready() {
     catch(error) { console.error(await evaluate("JSON.stringify({toast:document.querySelector('#toast')?.textContent,confirm:document.querySelector('#confirm-dialog')?.textContent,preview:document.querySelector('#import-preview')?.textContent})"));throw error; }
     for(const line of result)console.log(line);
     const qa=path.join(root,'private-data','qa');fs.mkdirSync(qa,{recursive:true});
+    await evaluate("location.hash='setup'");await pause(200);
+    console.log(await evaluate(`(()=>{const cards=[...document.querySelectorAll('#view-setup article')];if(document.documentElement.scrollWidth>360)throw Error('Setup overflow at 360px');for(let i=1;i<cards.length;i++)if(cards[i].getBoundingClientRect().top<cards[i-1].getBoundingClientRect().bottom)throw Error('Setup cards not vertical');return 'PASS Setup vertical order and no horizontal overflow at 360px';})()`));
+    const mobileLayout=await cdp('Page.getLayoutMetrics');
+    fs.writeFileSync(path.join(qa,'setup-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:360,height:mobileLayout.cssContentSize.height,scale:1}})).data,'base64'));
     await evaluate("location.hash='operasional'");await pause(200);
     fs.writeFileSync(path.join(qa,'operasional-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
     await cdp('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
@@ -81,7 +91,9 @@ async function ready() {
     await cdp('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
     await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
     await evaluate("location.hash='setup'");await pause(200);
-    fs.writeFileSync(path.join(qa,'setup-desktop.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+    console.log(await evaluate(`(()=>{const cards=[...document.querySelectorAll('#view-setup article')];if(document.documentElement.scrollWidth>1280)throw Error('Setup overflow desktop');for(let i=1;i<cards.length;i++)if(cards[i].getBoundingClientRect().top<cards[i-1].getBoundingClientRect().bottom)throw Error('Setup not vertical desktop');return 'PASS Setup vertical order and no horizontal overflow at 1280px';})()`));
+    const desktopLayout=await cdp('Page.getLayoutMetrics');
+    fs.writeFileSync(path.join(qa,'setup-desktop.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:1280,height:desktopLayout.cssContentSize.height,scale:1}})).data,'base64'));
     // Switch the same origin from production to dev: the dev worker must replace
     // cache-first behavior while preserving the existing database and draft.
     const localPort=server.address().port;

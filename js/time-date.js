@@ -17,6 +17,14 @@ export function dateFromSerial(value) {
   if (n < 1 || n === 60 || n > 2958465) throw Error('Kode tanggal Excel di luar rentang kalender.');
   return new Date(EPOCH + (n < 60 ? n + 1 : n) * DAY).toISOString().slice(0, 10);
 }
+// Operational WA notation: a single minute digit denotes tens of minutes.
+export function normalizeTime(value) {
+  if (typeof value !== 'string' || !/^\d{1,2}(?:\.\d{1,2})?$/.test(value)) return null;
+  const [hour, minute = '00'] = value.split('.');
+  const minutes = minute.padEnd(2, '0');
+  if (Number(hour) > 23 || Number(minutes) > 59) return null;
+  return `${hour.padStart(2, '0')}.${minutes}`;
+}
 export const validTime = value => typeof value === 'string' && value.length === 5 && /^(?:[01]\d|2[0-3])\.[0-5]\d$/.test(value);
 export function localTime(date = new Date()) {
   return [date.getHours(), date.getMinutes()].map(n => String(n).padStart(2, '0')).join('.');

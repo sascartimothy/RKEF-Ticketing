@@ -24,31 +24,21 @@
   <main id="main" tabindex="-1" inert aria-busy="true">
     <section id="view-setup" class="view" aria-labelledby="title-setup">
       <div class="page-heading"><div><p class="eyebrow">01 / PERSIAPAN SHIFT</p><h1 id="title-setup" tabindex="-1">Siapkan sesi kerja</h1><p>Pastikan identitas shift dan pilihan material sebelum mulai.</p></div><span class="page-tag">SETUP</span></div>
-      <div class="columns">
-        <div class="stack">
-          <article class="card"><div class="card-heading"><h2>Sesi operasional</h2><span class="badge subtle" id="session-state">Belum aktif</span></div>
-            <form id="session-form"><div class="form-grid">
-              <label>Tanggal operasi<input name="operationDate" type="date" required></label>
-              <label>Shift<select name="shift" required></select></label>
-              <label>Lokasi timbangan<input name="scale" list="scale-options" placeholder="Isi nama / kode timbangan" maxlength="100" required></label>
-              <label>Checker<input name="checker" list="checker-options" placeholder="Nama checker" maxlength="100" required></label>
-            </div><p class="hint">Tanggal tetap mengikuti sesi meski melewati tengah malam. Jam shift tidak diasumsikan.</p><button class="primary full" type="submit">Simpan & aktifkan sesi <span aria-hidden="true">→</span></button></form>
-          </article>
-          <article class="card"><div class="card-heading"><div><p class="eyebrow">HANDOVER MANUAL</p><h2>Impor laporan WhatsApp</h2></div></div>
-            <p>Tempel teks TAB dari shift sebelumnya. Histori impor terpisah dari ritase input lokal.</p>
-            <label for="wa-source">Teks laporan asli (10 atau 11 kolom)</label><textarea id="wa-source" rows="5" spellcheck="false" placeholder="Tempel laporan WhatsApp di sini…"></textarea>
-            <div class="button-row"><button id="preview-import" class="secondary">Periksa & preview</button><span class="hint">Teks sumber tidak diperbaiki otomatis.</span></div>
-            <div id="import-preview" hidden></div>
-          </article>
-          <article class="card"><h2>Pilihan lokal</h2><p>Tambahkan atau koreksi pasangan material, identitas petugas, dan daftar shift di perangkat ini.</p>
-            <form id="master-form"><label>Jenis pilihan<select id="master-kind" name="kind"><option value="stock">Stockpile / Pile ID / Source Code</option><option value="product">Product / Dome / Destination</option><option value="scale">Timbangan</option><option value="checker">Checker</option><option value="shift">Shift</option></select></label>
-              <div id="master-fields" class="form-grid"></div>
-              <div class="button-row"><button class="secondary" type="submit" id="save-master">Simpan pilihan lokal</button><button type="button" id="cancel-master" class="button-quiet" hidden>Batal koreksi</button></div>
-            </form><p class="hint">Destination pada pasangan lokal tidak dikirim ke Google Sheets. Gunakan panel Destination untuk menambah master bersama.</p>
-            <details><summary>Lihat & perbaiki pilihan tersimpan <span id="master-count"></span></summary><div id="master-list" class="master-list"></div></details>
-          </article>
-        </div>
-        <aside class="stack">
+      <div class="stack setup-stack">
+        <article class="card" id="handover-card">
+          <div class="card-heading"><h2>Handover manual</h2></div>
+          <p>Tempel laporan lengkap satu shift sebelumnya untuk satu timbangan. Laporan valid diproses otomatis setelah paste untuk mengaktifkan sesi berikutnya.</p>
+          <label for="wa-source">Teks laporan asli (11 kolom TAB, serial + nomor ritase)</label>
+          <textarea id="wa-source" rows="8" spellcheck="false" placeholder="Tempel laporan WhatsApp di sini…"></textarea>
+          <div id="import-preview" aria-live="polite" hidden></div>
+        </article>
+        <article class="card" id="session-card">
+          <div class="card-heading"><h2>Sesi operasional</h2><span class="badge subtle" id="session-state">Belum aktif</span></div>
+          <div id="session-details"></div>
+          <form id="checker-form" hidden><label>Nama Checker<input name="checker" list="checker-options" maxlength="100" required autocomplete="off"></label><button type="submit" class="secondary">Simpan checker</button></form>
+          <div id="checker-feedback" role="status" hidden></div>
+          <p class="hint">Isi checker sebelum menyimpan ritase baru. Sesi diperbarui setelah handover valid tersimpan. Nomor berikutnya adalah informasi persiapan; penomoran transaksi saat simpan belum diterapkan.</p>
+        </article>
           <article class="card"><div class="card-heading"><div><p class="eyebrow">MASTER BERSAMA</p><h2>Destination</h2></div><span id="destination-count" class="number-badge">0</span></div>
             <div id="sync-state" class="alert" role="status">Belum ada snapshot Destination.</div>
             <div class="button-row"><button id="refresh-destination" class="secondary">↻ Refresh</button><button id="health" class="button-quiet">Tes koneksi</button></div>
@@ -57,8 +47,16 @@
             <div id="pending-destination" class="alert warning" hidden></div>
             <p class="hint">Hanya Destination yang dibagikan. Ritase dan checker tetap lokal. Penambahan memerlukan koneksi dan read-back.</p>
           </article>
-          <article class="card note-card"><span class="eyebrow">SEBELUM MULAI</span><h2>Data Anda ada di HP ini</h2><p>Dua HP tidak berbagi ritase otomatis. Handover memakai teks WhatsApp; unduh backup JSON secara berkala di Report.</p><p class="hint">Integrasi Android / Google Sheets live belum dinyatakan lulus. <a href="./integration-test.html" target="_blank" rel="noopener">Buka alat uji integrasi ↗</a></p><div class="button-row"><button id="persist-storage" class="button-quiet">Minta penyimpanan persisten</button></div><p id="storage-info" class="hint"></p><p id="pwa-state" class="hint" role="status"></p></article>
-        </aside>
+        <article class="card note-card" id="version-card">
+          <p id="app-version"></p>
+          <p id="pwa-state" class="hint" role="status"></p>
+          <details><summary>Penyimpanan perangkat & diagnostik</summary>
+            <p class="hint">Ritase tetap di perangkat ini. Unduh backup JSON berkala di Report.</p>
+            <button id="persist-storage" class="button-quiet">Minta penyimpanan persisten</button>
+            <p id="storage-info" class="hint"></p>
+            <a href="./integration-test.html" target="_blank" rel="noopener">Buka alat uji integrasi ↗</a>
+          </details>
+        </article>
       </div>
     </section>
     <section id="view-operasional" class="view" aria-labelledby="title-operasional" hidden>

@@ -6,12 +6,14 @@ export function textError(value, label = 'Nilai', max = 100) {
   if (value.length > max || /[\u0000-\u001f\u007f<>]/.test(value)) return `${label}: karakter/ukuran tidak valid.`;
   return '';
 }
-export function validateRecord(record, { historical = false } = {}) {
+export function validateRecord(record, { historical = false, allowUnknownChecker = false } = {}) {
   if (!record || typeof record !== 'object') return ['Record / snapshot tidak valid.'];
   const errors = [];
+  if (record.ritaseNumber !== undefined && (!Number.isSafeInteger(record.ritaseNumber) || record.ritaseNumber < 1)) errors.push('Nomor ritase tidak valid.');
   try { calendarDate(record.operationDate); } catch (e) { errors.push(e.message); }
   for (const field of FIELDS) {
     if (historical && ['checker', 'shift'].includes(field)) continue;
+    if (allowUnknownChecker && field === 'checker' && record.checker === '' && record.checkerConfirmed === false) continue;
     const error = textError(record[field], field);
     if (error) errors.push(error);
   }

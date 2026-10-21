@@ -1,5 +1,5 @@
 /* Only same-origin, explicitly enumerated app shell assets. Sheets is never cached here. */
-const VERSION = 'rkef-shell-v1';
+const VERSION = 'rkef-shell-v1.1.0-handover-auto';
 const BASE = new URL('./', self.location.href);
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './manifest.webmanifest',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',

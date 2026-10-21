@@ -6,6 +6,7 @@ Full PWA implementation and final root-based restructuring explicitly authorized
 Do not run git add, commit, push, pull, reset, clean, or any deployment command. Do not change remotes, GitHub, Pages settings, or Apps Script deployments. The owner manages Git and deployment.
 
 ## Source of truth
+- Read [Operational Specification](docs/requirements/RKEF_OPERATIONAL_SPEC.md) before changing input, handover, numbering, or export logic. It is the primary reference for the latest confirmed operational decisions and supersedes conflicting older PRD/prompt/README rules. Open decisions require owner clarification, not assumptions. Documentation alignment does not mean the existing application implements the new contract.
 - [PRD](docs/requirements/PRD_RKEF_Ticketing_v0.9.md) and [Codex implementation instructions](docs/development/CODEX_ONE_SHOT_PROMPT.md) define the approved local implementation scope, supplemented by the owner's explicit instructions.
 - `apps-script/Code.gs` is a reference copy of the currently deployed Apps Script candidate. Do **not** assume editing it locally updates the /exec deployment. Script versions require redeployment by the owner.
 - Repository root is the sole authoritative frontend source: `index.html`, `integration-test.html`, `styles.css`, `config.js`, `manifest.webmanifest`, `sw.js`, `assets/`, and `js/`. There is no `src/`, `dist/`, build command, or replacement output directory. Do not create duplicate application copies.
@@ -24,7 +25,7 @@ Do not run git add, commit, push, pull, reset, clean, or any deployment command.
 - Operators paste WhatsApp report to initialize/verify the next shift and copy report text to hand over.
 - Stockpile/Pile ID and product/dome mappings derive from the last approved WhatsApp report plus explicitly entered local options. Never silently invent master entries.
 - Time defaults to device time when opening an input, and remains editable; preserve source time and edited time.
-- WA TSV export has 11 columns in this order: Excel date serial (no trip suffix), DT No, source code, Stockpile, Pile ID, deliberately empty field, product code, Dome, Destination, HH.mm, scale name/code.
+- Latest WA TSV contract: 11 columns in this order: Excel date serial + ritase suffix, DT No, source code, Stockpile, Pile ID, deliberately empty field, product code, Dome, Destination, transaction time, scale code. Owner-confirmed time rule: `7.2` means `07.20`; one minute digit denotes tens of minutes, bare hours mean `00` minutes, preserve source time for audit. Valid conflict-free handover automatically saves and activates after complete paste, without confirmations; the operator enters the current checker manually. BDM/ONI counters are independent; mixed-scale reports reject the entire import. Complete reports starting at `001` hand over DS → NS on the same operation date; other starting suffixes hand over NS → next-date DS at `001`. See the Operational Specification for numbering guarantees and existing implementation conflicts; this documentation task does not authorize application changes.
 - Sublot (SL) logic is excluded from v1.
 
 ## Testing and release
