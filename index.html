@@ -28,6 +28,8 @@
         <article class="card" id="handover-card">
           <div class="card-heading"><h2>Handover manual</h2></div>
           <p>Tempel laporan lengkap satu shift sebelumnya untuk satu timbangan. Laporan valid diproses otomatis setelah paste untuk mengaktifkan sesi berikutnya.</p>
+          <p id="handover-session" class="hint" hidden></p>
+          <button id="new-session" type="button" class="secondary full">Mulai Sesi Baru</button>
           <label for="wa-source">Teks laporan asli (11 kolom TAB, serial + nomor ritase)</label>
           <textarea id="wa-source" rows="8" spellcheck="false" placeholder="Tempel laporan WhatsApp di sini…"></textarea>
           <div id="import-preview" aria-live="polite" hidden></div>
@@ -37,7 +39,7 @@
           <div id="session-details"></div>
           <form id="checker-form" hidden><label>Nama Checker<input name="checker" list="checker-options" maxlength="100" required autocomplete="off"></label><button type="submit" class="secondary">Simpan checker</button></form>
           <div id="checker-feedback" role="status" hidden></div>
-          <p class="hint">Isi checker sebelum menyimpan ritase baru. Sesi diperbarui setelah handover valid tersimpan. Nomor berikutnya adalah informasi persiapan; penomoran transaksi saat simpan belum diterapkan.</p>
+          <p class="hint">Isi checker sebelum menyimpan ritase baru. Sesi diperbarui setelah handover valid tersimpan. Nomor berikutnya ditetapkan atomik saat ritase tersimpan.</p>
         </article>
           <article class="card"><div class="card-heading"><div><p class="eyebrow">MASTER BERSAMA</p><h2>Destination</h2></div><span id="destination-count" class="number-badge">0</span></div>
             <div id="sync-state" class="alert" role="status">Belum ada snapshot Destination.</div>
@@ -60,25 +62,28 @@
       </div>
     </section>
     <section id="view-operasional" class="view" aria-labelledby="title-operasional" hidden>
-      <div class="page-heading"><div><p class="eyebrow">02 / PENCATATAN LAPANGAN</p><h1 id="title-operasional" tabindex="-1">Input ritase</h1><p>Isi transaksi. Data tersimpan di perangkat setelah konfirmasi penyimpanan.</p></div><span class="page-tag">OPERASIONAL</span></div>
+      <div class="page-heading"><div><p class="eyebrow">02 / PENCATATAN LAPANGAN</p><h1 id="title-operasional" tabindex="-1">Input ritase</h1><p>Catat transaksi dan periksa riwayat sesi aktif.</p></div><span class="page-tag">OPERASIONAL</span></div>
       <div class="columns operation-columns"><div class="stack">
         <div id="no-session" class="alert warning" hidden>Aktifkan sesi di <a href="#setup">Setup</a> untuk mencatat ritase.</div>
-        <article class="card entry-card"><div class="card-heading"><h2 id="entry-title">Ritase baru</h2><button id="new-entry" class="button-quiet" type="button">+ Form baru</button></div>
-          <form id="entry-form"><fieldset id="entry-fields"><label class="large-label">DT No<input name="dtNo" list="dt-options" placeholder="Nomor dump truck" autocomplete="off" maxlength="100" required></label>
-            <label class="quick-label">Pilih pasangan Stockpile / Pile<select id="stock-quick"><option value="">Pilih pasangan tersimpan…</option></select></label>
-            <div class="form-grid"><label>Stockpile<input name="stockpile" list="stock-options" required maxlength="100"></label><label>Pile ID<input name="pileId" list="pile-options" required maxlength="100"></label></div>
-            <label>Source Code<input name="sourceCode" list="source-options" required maxlength="100"></label>
-            <label class="quick-label">Pilih pasangan Product / Dome<select id="product-quick"><option value="">Pilih pasangan tersimpan…</option></select></label>
-            <div class="form-grid"><label>Product Code<input name="productCode" list="product-options" required maxlength="100"></label><label>Dome<input name="dome" list="dome-options" required maxlength="100"></label></div>
-            <label>Destination<input name="destination" list="destination-options" required maxlength="100"></label>
-            <div class="form-grid"><label>Waktu (HH.mm)<input name="time" inputmode="decimal" placeholder="06.59" pattern="([01][0-9]|2[0-3])\.[0-5][0-9]" maxlength="5" required aria-describedby="time-hint"></label><div class="time-info"><small id="time-hint">Jam perangkat saat form dibuka; dapat diedit.</small><span id="source-time" class="hint"></span></div></div>
-            <label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label>
-            <div id="entry-context" class="context-box"></div><p id="draft-state" class="hint" role="status"></p>
+        <article class="card entry-card"><div class="card-heading"><h2 id="entry-title">Ritase baru</h2></div>
+          <div id="entry-context" class="context-box"></div>
+          <form id="entry-form" novalidate><fieldset id="entry-fields"><label class="large-label">Nomor Dump Truck<input name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
+<label>Stockpile / Pile ID<select data-mapping="stock" required></select></label>
+<label>Product / Dome / Destination<select data-mapping="product" required></select></label>
+<input type="hidden" name="stockpile"><input type="hidden" name="pileId"><input type="hidden" name="sourceCode"><input type="hidden" name="productCode"><input type="hidden" name="dome"><input type="hidden" name="destination">
+<label>Waktu Transaksi (HH.mm.ss)<input name="time" inputmode="numeric" autocomplete="off" placeholder="07.20.00" maxlength="8" required></label>
+<p class="hint">Waktu otomatis berjalan. Ketik angka untuk mengubah; kosongkan untuk kembali otomatis.</p>
+<label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label>
+            <button id="cancel-draft" type="button" class="button-quiet">Batalkan input</button><span id="source-time" class="hint"></span><p id="draft-state" class="hint" role="status"></p>
             <div id="entry-error" class="alert danger" role="alert" hidden></div>
             <button id="save-entry" class="primary full save-button" type="submit">Simpan ritase</button>
           </fieldset></form>
         </article></div>
-        <aside class="stack"><article class="card"><div class="card-heading"><div><p class="eyebrow">PERANGKAT INI</p><h2>Riwayat input lokal</h2></div><span id="history-count" class="number-badge">0</span></div><p class="hint">Terbaru lebih dahulu. Koreksi menyimpan snapshot awal dan jejak perubahan.</p><label>Cari riwayat<input id="history-search" type="search" placeholder="DT, tanggal, dome, destination…"></label><div id="history"></div><button id="more-history" class="button-quiet full" hidden>Tampilkan 30 berikutnya</button></article></aside>
+        <aside class="stack"><article class="card"><div class="card-heading"><h2>Riwayat Ritase</h2><span id="history-count" class="number-badge">0</span></div>
+          <p class="hint">Sesi aktif · urutan waktu terbaru. Nomor dapat berubah selama sesi aktif. Laporan yang sudah dikirim tidak dapat dideteksi; periksa ulang setelah koreksi.</p>
+          <details><summary>Cari riwayat</summary><label>Nomor DT atau material<input id="history-search" type="search" placeholder="820, stockpile, tujuan…"></label></details>
+          <div id="history"></div><button id="more-history" class="button-quiet full" hidden></button>
+        </article></aside>
       </div>
     </section>
     <section id="view-report" class="view" aria-labelledby="title-report" hidden>
@@ -87,7 +92,7 @@
         <label>Tanggal operasi<input type="date" name="operationDate"></label><label>Shift<select name="shift"></select></label><label>Timbangan<select name="scale"></select></label><label>Checker<select name="checker"></select></label><label>Stockpile<select name="stockpile"></select></label><label>Dome<select name="dome"></select></label><label>Destination<select name="destination"></select></label><label>Sumber data<select name="origin"><option value="local">Input lokal</option><option value="import">Histori impor</option><option value="">Semua sumber</option></select></label>
       </form><div class="button-row"><button id="active-filter" class="secondary">Gunakan sesi aktif</button><button id="clear-filter" class="button-quiet">Kosongkan filter</button></div></article>
       <div class="report-stats"><div><span class="eyebrow">SESUAI FILTER</span><div class="stat-number"><span id="report-count">0</span> <small>ritase</small></div></div><p id="report-description">Tidak ada transaksi.</p><span class="badge subtle">Jumlah transaksi · tanpa tonase</span></div>
-      <article class="card"><div class="card-heading"><h2>Preview WhatsApp</h2><span class="badge subtle">11 kolom TAB</span></div><p class="hint">Tanpa header. Kolom ke-6 kosong; tanggal serial Excel tanpa suffix; waktu HH.mm.</p><label for="report-output" class="sr-only">Laporan WhatsApp siap disalin</label><textarea id="report-output" rows="7" class="code" readonly spellcheck="false" placeholder="Belum ada ritase sesuai filter."></textarea><div class="button-row"><button id="copy-report" class="primary">Salin laporan</button><button id="export-txt" class="secondary">Unduh TXT</button></div>
+      <article class="card"><div class="card-heading"><h2>Preview WhatsApp</h2><span class="badge subtle">11 kolom TAB</span></div><p class="hint">Tanpa header. Kolom ke-6 kosong; tanggal serial Excel + nomor tersimpan (data lama tanpa nomor masih tanpa suffix); waktu HH.mm.</p><label for="report-output" class="sr-only">Laporan WhatsApp siap disalin</label><textarea id="report-output" rows="7" class="code" readonly spellcheck="false" placeholder="Belum ada ritase sesuai filter."></textarea><div class="button-row"><button id="copy-report" class="primary">Salin laporan</button><button id="export-txt" class="secondary">Unduh TXT</button></div>
         <details><summary>Periksa transaksi & kolom</summary><div id="report-table" class="table-scroll"></div></details>
       </article>
       <article class="card"><div class="card-heading"><div><p class="eyebrow">CADANGAN PERANGKAT</p><h2>Backup & restore</h2></div></div><p>JSON memuat semua ritase, histori impor, master, sesi, cache, draft, dan log koreksi, termasuk ID internal. Simpan di tempat aman di luar browser.</p><button id="backup" class="secondary">↓ Unduh backup lengkap</button><p id="backup-state" class="hint"></p><hr><label>Pilih file backup JSON<input id="restore-file" type="file" accept=".json,application/json"></label><div id="restore-preview" hidden></div></article>
@@ -96,6 +101,12 @@
   <nav class="bottom-nav" aria-label="Halaman utama"><a href="#setup" data-view="setup"><span aria-hidden="true">⚙</span>Setup</a><a href="#operasional" data-view="operasional"><span aria-hidden="true">＋</span>Operasional</a><a href="#report" data-view="report"><span aria-hidden="true">▤</span>Report</a></nav>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <dialog id="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Konfirmasi</h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel" class="secondary">Batal</button><button value="ok" class="primary" id="confirm-ok">Lanjutkan</button></div></form></dialog>
+  <dialog id="correction-dialog" aria-labelledby="correction-title"><h2 id="correction-title">Koreksi ritase</h2><form id="correction-form" novalidate><fieldset><label class="large-label">Nomor Dump Truck<input name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
+<label>Stockpile / Pile ID<select data-mapping="stock" required></select></label>
+<label>Product / Dome / Destination<select data-mapping="product" required></select></label>
+<input type="hidden" name="stockpile"><input type="hidden" name="pileId"><input type="hidden" name="sourceCode"><input type="hidden" name="productCode"><input type="hidden" name="dome"><input type="hidden" name="destination">
+<label>Waktu Transaksi (HH.mm.ss)<input name="time" inputmode="numeric" autocomplete="off" placeholder="07.20.00" maxlength="8" required></label>
+<label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label><div id="correction-error" class="alert danger" role="alert" hidden></div><div class="dialog-actions"><button type="button" id="cancel-correction" class="secondary">Batal</button><button type="submit" class="primary">Simpan koreksi</button></div></fieldset></form></dialog>
   <dialog id="audit-dialog"><h2>Jejak transaksi</h2><div id="audit-content"></div><form method="dialog"><button class="secondary">Tutup</button></form></dialog>
   <datalist id="scale-options"></datalist><datalist id="checker-options"></datalist><datalist id="dt-options"></datalist><datalist id="stock-options"></datalist><datalist id="pile-options"></datalist><datalist id="source-options"></datalist><datalist id="product-options"></datalist><datalist id="dome-options"></datalist><datalist id="destination-options"></datalist>
   <script src="./config.js"></script><script type="module" src="./js/app.js"></script>

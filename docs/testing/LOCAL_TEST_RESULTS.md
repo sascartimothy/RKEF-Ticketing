@@ -1,6 +1,146 @@
 # Hasil pengujian lokal
 
+## Input Waktu Manual Angka v1.1.1 — 21 Oktober 2026
+
+Penyebab: jam AUTO tidak diseleksi untuk penggantian langsung dan input manual hanya lolos sebagai waktu bertitik lengkap. Perbaikan memakai seleksi pada fokus/tap, sebelum edit/paste dan awal komposisi; fallback `input` untuk digit pertama. Fokus tanpa perubahan tetap AUTO. Formatter mempertahankan teks/kursor selama edit, lalu menormalkan nilai valid pada blur atau saat save sebelum validasi record. Nilai invalid dipertahankan; kosong/whitespace Ritase Baru langsung AUTO. Popup Koreksi memakai aturan angka yang sama, tidak menjalankan jam, dan menolak kosong. Draft manual mentah/parsial tetap disimpan sebagai draft, bukan transaksi valid.
+
+| Verifikasi lokal | Hasil |
+|---|---|
+| `npm.cmd test` | PASS — 36 tes Node, 12 assertion Apps Script mock, workspace dan docs |
+| `npm.cmd run test:browser` | PASS — Edge headless, server/profil baru, data sintetis dan IndexedDB nyata; request eksternal diblokir |
+| `npm.cmd run check:docs` | PASS — target, case dan anchor lokal |
+| `git diff --check` | PASS |
+| Angka/format | PASS — `720`, `0720`, `72035`, `072035`, `142530`, `235959`, notasi bertitik dan jam bulat; rentang invalid ditolak |
+| Input native Chromium | PASS — digit pertama mengganti AUTO, pengetikan bertahap, backspace, edit tengah/kursor, hapus dan penggantian numerik sekaligus |
+| Paste/komposisi | PASS terbatas — simulasi event `insertFromPaste` dengan data null dan komposisi; bukan clipboard OS atau keyboard Android fisik |
+| Clock/draft/save/koreksi | PASS — tick tanpa write, fokus tetap AUTO, kosong/spasi AUTO, capture sebelum delay async, normalisasi manual saat save, raw manual pulih setelah reload, popup statis dan draft utama tetap |
+| Integritas/regresi | PASS — UUID/audit/Opsi B atomik, NS ambigu diblokir, backup/restore, reset/reuse/handover, WA 11 TAB/kolom 6 kosong dan detik dibuang, offline, 360px/1280px |
+| Android/Chrome HP dan keyboard OEM/IME aktual | **NOT VERIFIED** |
+| Google anonim, Pages live, WhatsApp/Excel dan clipboard HP | **NOT VERIFIED** |
+
+Versi tetap **v1.1.1**; cache menjadi `rkef-shell-v1.1.1-manual-digits`, tanpa aset/modul baru. Database/schema/storage identity dan logika penomoran tidak diubah. Formatter sengaja tidak menambahkan titik setiap ketukan: panjang tiga digit bisa berlanjut menjadi empat/lima/enam digit, sehingga format akhir ditampilkan saat blur/save. Grammar parser handover WA tetap. Keputusan tanggal NS OD-10 dan finalisasi OD-09 tetap terbuka. Worker baru mengikuti mekanisme update existing, tanpa paksa reload.
+
+File yang disentuh tugas ini: `index.html`, `js/operational-ui.js`, `js/time-date.js`, `sw.js`, `tests/operational.test.js`, `tests/live-clock-browser.js`, `tests/browser-suite.js`, `scripts/browser-test.cjs`, README, spesifikasi operasional dan laporan ini. Seluruh perubahan lokal sebelumnya dipertahankan. Branch tetap `main`; tidak ada operasi Git yang mengubah repository, deployment, atau akses data operasional nyata.
+
+## Full Session Reset v1.1.1 - 21 Oktober 2026
+
+Keputusan terbaru owner menggantikan reset historis yang hanya menghapus sesi/draft: **Mulai Sesi Baru menghapus permanen semua ritase lokal milik sesi aktif setelah satu konfirmasi eksplisit.** Pemulihan memerlukan backup sebelumnya. Histori/receipt WA, master lokal, cache Master Bersama/Destination, konfigurasi, transaksi sesi/shift/timbangan/tanggal lain tetap tersimpan. Tidak ada penghapusan seluruh IndexedDB. Nomor sesi yang dibuang bebas untuk hasil handover baru; konflik di luar scope tetap diblokir.
+
+Akar benturan: implementasi sebelumnya meninggalkan record lokal (termasuk nomor bisnis) setelah menghapus penanda sesi. Reset sekarang memakai satu transaksi `records/settings/audit`: cek sesi/draft terbaru, identifikasi scope tanggal/shift/timbangan/handover/aktivasi, hapus record termasuk tombstone dan audit terkait, hapus draft/counter/sesi, lalu simpan audit ringkas `session-reset`. Identitas ambigu ditolak. Kegagalan setelah seluruh write dijadwalkan membatalkan semuanya; UI sukses hanya sesudah commit. Tab/koneksi stale ditolak oleh identitas aktivasi/revisi. Koreksi sekarang mempertahankan activationId, dan refresh antar-tab membuang draft memori dari aktivasi yang berakhir.
+
+| Pemeriksaan akhir | Hasil |
+|---|---|
+| `npm.cmd test` | PASS: 35 tes Node, 12 assertion Apps Script mock, static workspace dan docs |
+| `npm.cmd run test:browser` | PASS: Edge desktop, UI/IndexedDB nyata, skenario 83 + 3, reload dan offline |
+| `npm.cmd run check:docs` | PASS: 10 dokumen Markdown, 61 tautan lokal |
+| `git diff --check` | PASS |
+
+Bukti tes browser menggunakan profil/server baru, data sintetis dan IndexedDB nyata; request eksternal diblokir:
+
+- Skenario wajib: paste 83 BDM, isi checker manual, simpan melalui UI tiga lokal 084/085/086, Batal mempertahankan snapshot, konfirmasi menghapus tiga lokal beserta auditnya. 83 histori impor dan receipt tetap sama. Paste ulang mengaktifkan NS 20/10/2026, next `46315-084`, checker kosong, tanpa duplikasi; isi checker manual dan save UI baru berhasil di nomor 084. Reload aktual mempertahankan sesi/data baru.
+- Scope: ONI, shift lain, tanggal lain dan aktivasi sebelumnya tetap utuh; tombstone aktif dihapus. Konfigurasi, master, receipt, cache Destination tetap sama. Konflik lokal yang dipertahankan masih menolak handover. Identitas ambigu menolak seluruh reset.
+- Atomik: injeksi kegagalan setelah write record/audit/settings mengembalikan seluruh snapshot. Draft ikut dihapus, stale autosave dan koreksi dari koneksi kedua ditolak. Tanpa sesi aktif, histori tidak dihapus.
+- UI: satu popup per tindakan, judul dan tombol destruktif sesuai permintaan, peringatan permanen dan backup; status proses, textarea kosong, input nonaktif, riwayat kosong, Report hanya 83 impor setelah reset. Reload aktual setelah reset tidak mengaktifkan sesi/draft lama atau memunculkan lokal yang dibuang.
+- Backup versi 1 mendukung audit baru dan restore snapshot yang sama, tetap menerima audit `session-end` lama. Opsi B, popup koreksi, DT SAP, live clock, presisi detik, master material, WA HH.mm tanpa pembulatan, offline dan viewport 360px/1280px diuji oleh rangkaian regresi.
+- Runner reload menunggu main keluar dari status inert setelah load database selesai; sebelumnya pemeriksaan bisa terlalu dini. Assertion tie waktu di tes clock diperbaiki untuk memakai aturan createdAt lalu UUID; jam sintetis dapat memberi timestamp identik, sehingga urutan insert bukan jaminan urutan nomor.
+
+Versi tetap **v1.1.1**, cache worker `rkef-shell-v1.1.1-session-reset`, schema/nama database/storage identity tetap. Android/Chrome HP, WhatsApp/Excel, clipboard/download HP dan Google anonim live belum diverifikasi. Data lama tanpa provenance aktivasi yang cukup sengaja memblokir reset dan memerlukan peninjauan; tidak ditebak atau dihapus massal.
+
+File tugas reset: `js/database.js`, `js/setup-ui.js`, `js/app.js`, `styles.css`, `sw.js`, `tests/handover-reuse-browser.js`, `tests/browser-suite.js`, `tests/live-clock-browser.js`, `scripts/browser-test.cjs`, README, spesifikasi operasional dan dokumen ini. Perubahan lokal existing dipertahankan; branch main, tidak ada Git mutation/deployment.
+
+## Live Transaction Clock dan Second-Precision Ordering v1.1.1
+
+Verifikasi lokal 21 Oktober 2026, Node portable v24 / Edge Chromium headless, profil/server baru dan data sintetis. Semua request eksternal diblokir. Bagian ini memperbarui perilaku waktu; hasil historis di bawah tetap memiliki scope/versinya sendiri.
+
+Akar masalah: `ensureDraft` menangkap waktu pembukaan form sekali dan `fillDraft` menampilkannya tanpa clock. Validasi dan kunci urut sebelumnya hanya mendukung menit. Sekarang satu timer display membaca waktu perangkat, mode draft eksplisit, capture waktu/tanggal pada awal submit sebelum `flushDraft`, validasi dan await database. Metadata presisi bersifat additive; schema/database/UUID tetap. AUTO menyimpan waktu capture dan provenance pembukaan draft; koreksi mempertahankan sumber/snapshot asli.
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `npm.cmd test` | **PASS**: 35 tes Node, 12 assertion Apps Script mock, workspace dan dokumentasi |
+| `npm.cmd run test:browser` | **PASS**: IndexedDB nyata, UI, worker produksi, offline dan reload pada Edge desktop |
+| `npm.cmd run check:docs` | **PASS**: target/path case/anchor Markdown lokal |
+| `git diff --check` | **PASS** |
+| 1-5: AUTO tick, fokus/tap, MANUAL, kosong dan whitespace | **PASS**: clock terkontrol pada browser nyata, interval membaca device time termasuk loncatan jam; MANUAL tidak ditimpa |
+| 6-8: capture saat submit, delay async, simpan manual | **PASS**: draft flush ditahan, waktu perangkat digeser sebelum DB; tersimpan tetap `14.27.38`; manual `14.25` tetap presisi menit |
+| 9-10: tanpa draft write tiap tick, mode setelah reload | **PASS**: spy `saveDraft` dan perbandingan draft; reload browser aktual untuk AUTO dan MANUAL |
+| 11: koreksi tidak mengganti draft baru | **PASS**: field/modal historis statis, snapshot draft baru tetap sama setelah koreksi |
+| 12-16: tiga transaksi satu menit, koreksi detik, UUID, audit, tie stabil | **PASS**: `14.25.12/.38/.51` menjadi `084/085/086`, koreksi `.51` ke `.20` menukar nomor peer secara atomik; equal seconds memakai createdAt/UUID; restore mempertahankan nomor |
+| 17: validasi/save gagal tidak menghabiskan nomor | **PASS**: input invalid tanpa record/counter baru; injeksi abort setelah penulisan peer/counter/audit mengembalikan snapshot utuh |
+| 18-19: WA tanpa pembulatan | **PASS**: `14.25.59` menjadi `14.25`, `23.59.59` menjadi `23.59`; 11 kolom, kolom 6 kosong, serial tanggal tetap, database tidak dimutasi |
+| 20-21: histori menit dan backup/restore | **PASS**: record/snapshot lama menit tetap diterima; restore IndexedDB mempertahankan detik, presisi, mode, UUID, nomor, sumber dan audit |
+| 22: ambiguitas NS | **PASS** guard: tanggal aktual sebelum/sesudah tengah malam dihormati; waktu manual NS/koreksi waktu ambigu **BLOCKED OD-10**, tanpa perubahan snapshot |
+| 23-25: Setup, riwayat/modal, versi | **PASS**: regresi automatic handover/reuse, lima riwayat/expand/search/modal, versi tetap `1.1.1` |
+| Layout | **PASS**: tanpa horizontal overflow 360px; screenshot Operasional dan popup ditinjau; desain existing dipertahankan |
+| Android/Chrome HP, jam HP aktual, Google, WA/Excel, Pages live | **NOT VERIFIED**: belum diuji langsung |
+| Kebijakan NS manual/tanggal, finalisasi, laporan lengkap/filter, migrasi historis | **BLOCKED BY OPEN DECISION**: OD-10/09/04/05 tetap berlaku; bukan dituntaskan oleh perubahan clock |
+
+Tes khusus: `tests/live-clock-browser.js`, `tests/operational.test.js`, tambahan `tests/domain.test.js`; runner `scripts/browser-test.cjs`. Test receipt existing kini memilih record milik receipt yang diuji, menggantikan pemilihan row pertama dengan urutan UUID acak. Worker cache menjadi `rkef-shell-v1.1.1-live-clock`; versi tampilan tetap v1.1.1. Tidak ada modul/aset publik baru sehingga inventaris publik/offline tidak bertambah.
+
+Batas kompatibilitas draft lama tanpa mode: nilai sama dengan `sourceTime` dianggap AUTO, berbeda atau draft koreksi dianggap MANUAL. Mengetik ulang nilai yang sama tidak tercatat pada format lama; tidak ada cara memulihkan niat tersebut secara pasti. Waktu historis menit tidak diberi detik pengamatan palsu. WA hanya membawa menit; gunakan JSON untuk mempertahankan detik.
+
+File tugas ini: `index.html`, `js/operational-ui.js`, `js/time-date.js`, `js/database.js`, `js/validation.js`, `js/wa-parser.js`, `js/wa-exporter.js`, `sw.js`, tes/runner di atas serta `tests/browser-suite.js`, README, spesifikasi dan laporan ini. Perubahan lokal yang sudah ada dipertahankan. Branch `main`; tidak ada add/commit/push/reset/clean/deploy atau perubahan setting hosting. Pengujian memakai storage sintetis terisolasi; IndexedDB operator tidak dihapus.
+
+
+## Handover reuse v1.1.1 — 21 Oktober 2026
+
+Keputusan terbaru menggantikan aturan historis di bawah yang menyebut replay tidak boleh mengaktifkan sesi. Receipt hanya mencegah duplikasi histori; laporan yang sama boleh mengaktifkan sesi kembali setelah reset bila aman. Versi aplikasi/paket tetap **v1.1.1**, cache produksi `rkef-shell-v1.1.1-handover-reuse`; database/schema/storage identity tidak berubah.
+
+- **PASS skenario wajib, UI + IndexedDB nyata:** impor sintetis 83 BDM `46315-001`–`46315-083`, NS 20/10/2026 aktif, satu konfirmasi Mulai Sesi Baru, sesi nonaktif, paste laporan sama, NS BDM aktif kembali dengan `46315-084` dan checker kosong. Tidak ada konfirmasi tambahan setelah paste.
+- **PASS integritas:** seluruh 83 record termasuk UUID/snapshot sama persis; satu receipt; mapping tidak berubah/bertambah. Paste berulang menjadi no-op. Audit aktivasi ulang tersimpan dan valid untuk backup/restore. Injeksi gagal setelah write aktivasi ulang membatalkan seluruh transaksi; UI tetap nonaktif dan menampilkan gagal.
+- **PASS reload browser aktual:** sesi aktif beserta nomor, records, receipt, dan mapping tetap sama; checker manual berhasil disimpan. ID aktivasi baru menolak draft tab lama walaupun laporan sama.
+- **PASS guard regresi:** draft dirty, sesi stale, histori bertumpang tindih, transaksi lokal pada sesi tujuan, persiapan mundur dan campuran BDM/ONI ditahan tanpa overwrite. BDM/ONI independen; NS → DS tanggal berikutnya tetap `001`.
+- **PASS regresi:** Opsi B, koreksi popup, UUID dan audit peer, backup/restore, tampilan 360px/1280px, riwayat expandable, pending Destination mock, offline produksi dan perpindahan worker produksi → dev.
+
+**Seluruh perintah PASS:** `npm.cmd test` (32 tes Node, 12 assertion Apps Script mock, workspace/docs), `npm.cmd run test:browser` (Edge headless terisolasi), `npm.cmd run check:docs`, dan `git diff --check`. Semua data sintetis, request eksternal browser diblokir; bukan bukti Android/Chrome HP, clipboard WA/Excel, atau Google live. OD-06 untuk rekonsiliasi konflik nyata tetap terbuka; tidak ada overwrite otomatis. Git/deployment tetap owner-only.
+
+File pada tugas reuse: `js/database.js`, `js/import-ui.js`, `sw.js`, `tests/handover-reuse-browser.js` (baru), `tests/browser-suite.js`, `scripts/browser-test.cjs`, `README.md`, `docs/requirements/RKEF_OPERATIONAL_SPEC.md`, dan laporan ini. Perubahan lokal sebelum tugas dipertahankan. Status Git akhir: branch `main`, working tree belum bersih (21 modified, 2 untracked termasuk tes Operasional existing); tidak ada staging, commit, push, atau deployment.
+
+## Mulai Sesi Baru v1.1.1 — 21 Oktober 2026 (catatan historis)
+
+Implementasi dan verifikasi lokal tombol Setup → Handover manual → **Mulai Sesi Baru**, setelah ringkasan sesi dan sebelum textarea. Versi aplikasi/paket tetap v1.1.1; cache app shell kini `rkef-shell-v1.1.1-session` agar perubahan lokal dapat diterima worker baru.
+
+- **PASS `npm.cmd test`:** 32 tes Node, 12 assertion Apps Script mock, checker workspace dan dokumentasi.
+- **PASS `npm.cmd run test:browser`:** Edge desktop headless, IndexedDB nyata, data sintetis dan request eksternal diblokir. Tombol/urutan DOM, satu popup Batal/Lanjutkan, tanpa mutasi sebelum konfirmasi, pembatalan tanpa perubahan, klik berulang, serta popup tanpa overflow pada 360px.
+- **PASS:** reset atomik menghapus hanya penanda sesi/draft; records, masters, imports, cache, pending dan audit lama tetap utuh. Audit `session-end` lolos validasi backup. Injeksi kegagalan setelah write membuktikan rollback sesi/draft dan state memori.
+- **PASS:** autosave yang sengaja ditunda dituntaskan sebelum konfirmasi; autosave dari koneksi dengan sesi lama ditolak setelah commit. Sesi/draft yang berubah pada koneksi kedua menolak reset tanpa perubahan. Reset saat simpan ritase masih pending ditolak. Tanpa sesi/draft tidak ada popup atau write reset.
+- **PASS:** paste valid setelah reset mengaktifkan NS dengan nomor `46315-084`, checker kosong lalu diisi manual. Campuran BDM/ONI tetap ditolak; impor identik setelah reset tetap idempoten tanpa aktivasi ulang. Regresi Operasional Opsi B, koreksi, numbering, riwayat, backup/restore dan offline tetap lulus. Reload browser setelah reset tidak memulihkan sesi/draft lama dan tetap memuat ritase tersimpan.
+- **PASS `npm.cmd run check:docs` dan `git diff --check`.**
+
+Screenshot lokal di `private-data/qa/`; viewport 360px dan 1280px. Hasil ini bukan uji Android/Chrome HP, clipboard WhatsApp/Excel, atau Google Sheets live. Perlindungan konflik historis/receipt tetap berlaku; reset tidak memberi izin overwrite atau aktivasi ulang laporan yang sudah diproses. Git dan deployment tetap owner-only; perubahan lokal existing dipertahankan.
+
+
 Tanggal laporan: **21 Oktober 2026 (Asia/Makassar)**. Restrukturisasi root lokal saja; Git, GitHub, Pages settings, dan Apps Script deployment tidak diubah. Data browser sintetis; tidak ada penulisan Sheets live.
+
+## Operasional v1.1.1 — 21 Oktober 2026
+
+Hasil di bagian ini menggantikan status Operasional/nomor/exporter v1.1.0 di catatan historis berikut. Seluruh perubahan lokal; branch `main`, tanpa staging, commit, push, perubahan GitHub, atau deployment.
+
+| Pemeriksaan | Hasil dan batas bukti |
+|---|---|
+| `npm.cmd test` | **PASS** — 32 tes Node, 12 assertion Apps Script mock, static inventory/server/version alignment dan checker dokumentasi |
+| `npm.cmd run test:browser` | **PASS** — Edge headless, server/profil baru, IndexedDB nyata, data sintetis, seluruh request eksternal diblokir |
+| `npm.cmd run check:docs` / `git diff --check` | **PASS** — target/case/anchor lokal dan whitespace diff; bukan verifikasi link eksternal |
+| Input 360px | **PASS** — dua selector material mengisi Source/Product/Destination, input `820` menyimpan `SAP_820`, kode SAP lengkap tidak diprefix ulang, kode non-SAP lengkap dipertahankan; waktu/note dan simpan; tidak ada + Form Baru |
+| Draft & popup | **PASS** — koreksi memakai dialog terpisah, draft baru beserta nilai form/IndexedDB tidak diganti. Simulasi gagal simpan modal tetap terbuka, rows/draft tetap; retry berhasil. Save baru menyiapkan form kosong dengan waktu perangkat |
+| Riwayat | **PASS** — default lima transaksi sesi aktif, count dinamis, expand tujuh inline/collapse kembali lima, pencarian numerik DT. Dataset sintetis 300 baris dirender inline lalu collapse; pengukuran lokal sekitar 5ms, bukan benchmark HP |
+| Opsi B | **PASS** — `084/15.20`, `085/15.25`, `086/15.30`; koreksi UUID ketiga ke `15.22` menghasilkan `084/085/086` sesuai kronologi; UUID/snapshot tetap. Penyisipan lebih awal dan tie-breaker createdAt/UUID stabil diuji; nomor >999 didukung |
+| Audit/counter | **PASS** — audit `correct` membawa nomor before/after kandidat, `renumber` membawa nomor peer before/after; revisi peer naik. Seluruh penulisan diuji dalam satu transaksi atomik |
+| Rollback | **PASS** — abort disuntik setelah record/peer/counter/audit diantrekan: snapshot semua store identik sebelum/sesudah. Kegagalan tidak menghabiskan nomor |
+| Tab/retry | **PASS** — dua koneksi IndexedDB bersamaan menulis scope sama tanpa nomor ganda/gap; retry payload asli mempertahankan UUID/counter. Ini membuktikan serialisasi store antar-koneksi origin sama, bukan sinkronisasi antar-HP |
+| Scope beku | **PASS** — histori impor, tanggal lain, timbangan lain tidak berubah; koreksi sesi sebelumnya ditolak. Collision nomor bisnis, histori tanpa metadata aman dan tombstone/gap diblokir. Penghapusan bernomor ditolak OD-02 |
+| Reload/backup | **PASS** — reload browser offline mempertahankan koreksi `SAP_826`, waktu `08.01`, nomor `003`, serta audit renumber; backup/restore snapshot lengkap numbering/audit identik, UUID tetap; merge konflik atomik |
+| NS midnight | **PASS (cakupan terbatas)** — metadata tanggal kalender perangkat yang tersedia bersama waktu default tidak diedit mengurutkan `23.50` tanggal operasi sebelum `00.30` tanggal berikutnya, nomor `089/090`; tanggal operasi tidak berubah |
+| NS manual/ambigu | **BLOCKED (OD-10)** — waktu manual berbeda dari default, koreksi jam NS, tanggal aktual hilang/di luar tanggal operasi dan hari berikutnya ditolak tanpa perubahan DB; tidak menebak shift boundary |
+| Setup v1.1.0 | **PASS regresi lokal** — empat card, auto paste valid, checker manual, aturan waktu owner, campuran ditolak, idempotensi, rollback handover, master lokal tetap, pending/read-back mock tetap |
+| Report | **PASS integrasi terbatas** — exporter memakai suffix aktual tersimpan, duplicate fingerprint mengabaikan suffix, sorting memakai nomor tersimpan; format lama tanpa nomor tetap legacy. UI/filter tidak didesain ulang |
+| PWA/version | **PASS** — tampilan/config/paket/cache v1.1.1, schema DB v1 dan storage identity tetap, offline shell/reload serta produksi → dev mempertahankan data |
+| Screenshot | **PASS visual lokal** — `private-data/qa/operasional-360.png` (form dan riwayat penuh), `correction-360.png` (modal), Setup 360px/1280px; semua artefak diabaikan Git |
+| Android/Chrome HP / WA → Excel / Google live | **NOT VERIFIED** — emulasi viewport desktop dan mock bukan pengujian perangkat/layanan aktual |
+| Finalisasi/kiriman WA | **OPEN OD-09** — aplikasi tidak mengetahui laporan sudah dikirim; sesi aktif tidak membuktikan belum terkirim. Perubahan nomor dapat berbeda dari laporan lama. Tidak ada klaim perlindungan/finalisasi laporan terkirim |
+| Report final lengkap | **OPEN OD-04/05** — filter/subset, laporan campuran, data lama tanpa nomor belum memenuhi seluruh kontrak handover; perlu task Report berikutnya |
+| Mapping/prefix lanjutan | **OPEN OD-11** — UI resmi tambah/koreksi mapping lokal dan prefix otomatis selain SAP belum ditetapkan; konflik tidak ditebak, kode lengkap non-SAP tetap didukung |
+
+Tidak ada FAIL yang tersisa pada suite akhir. File baru: `tests/operational.test.js`. Perubahan: `index.html`, `styles.css`, `config.js`, `package.json`, `sw.js`, `js/operational-ui.js`, `js/database.js`, `js/validation.js`, `js/wa-exporter.js`, `js/report-ui.js`, `scripts/browser-test.cjs`, `scripts/check-workspace.cjs`, `tests/browser-suite.js`, `tests/domain.test.js`, `README.md`, `AGENTS.md`, spesifikasi operasional, dan laporan ini. Tidak ada perubahan backend atau aset/module publik baru; inventaris publik/offline tetap dan sudah diperiksa.
 
 ## Automatic handover v1.1.0 - 21 Oktober 2026
 

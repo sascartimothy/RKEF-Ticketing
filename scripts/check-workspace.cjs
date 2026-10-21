@@ -31,6 +31,8 @@ for (const name of FRONTEND_FILES) readPublicFile(root, name);
 assert.equal(readPublicFile(root, '.nojekyll').length, 0);
 console.log('PASS single root application; no src/dist/build/workflow; docs is Markdown-only; explicit public inventory');
 const cfg = readPublicFile(root, 'config.js').toString();
+assert.ok(cfg.includes(`appVersion: "${pkg.version}"`), 'Display version matches package');
+assert.ok(readPublicFile(root, 'sw.js').toString().includes(`rkef-shell-v${pkg.version}-`), 'Offline cache version matches package');
 assert.match(cfg, /https:\/\/script\.google\.com\/macros\/s\/AKfycbw_UKTsxY6Pl2oaUnzr5K38usn2wGwcDG75xtvVIjADUugPp79QJdTAzZ6qIXjHJIAtBQ\/exec/);
 assert.match(readPublicFile(root, 'integration-test.html').toString(), /RKEF_CONFIG/);
 console.log('PASS workspace files and public Apps Script endpoint config (static check only)');

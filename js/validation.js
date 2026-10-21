@@ -1,4 +1,4 @@
-import { calendarDate, validTime } from './time-date.js';
+import { calendarDate, validTime, timePrecision } from './time-date.js';
 export const FIELDS = ['dtNo', 'sourceCode', 'stockpile', 'pileId', 'productCode', 'dome', 'destination', 'time', 'scale', 'checker', 'shift'];
 export function textError(value, label = 'Nilai', max = 100) {
   if (typeof value !== 'string' || !value.length) return `${label} wajib diisi.`;
@@ -17,7 +17,9 @@ export function validateRecord(record, { historical = false, allowUnknownChecker
     const error = textError(record[field], field);
     if (error) errors.push(error);
   }
-  if (!validTime(record.time)) errors.push('Jam harus HH.mm (00.00–23.59).');
+  if (!validTime(record.time)) errors.push('Jam harus HH.mm atau HH.mm.ss (00.00.00–23.59.59).');
+  if (record.timePrecision !== undefined && record.timePrecision !== timePrecision(record.time)) errors.push('Presisi waktu tidak sesuai nilai waktu.');
+  if (record.timeMode !== undefined && !['auto', 'manual'].includes(record.timeMode)) errors.push('Mode waktu tidak valid.');
   if (record.note !== undefined && (typeof record.note !== 'string' || record.note.length > 1000 || /[\u0000-\u001f\u007f]/.test(record.note))) errors.push('Note maksimal 1000 karakter, satu baris.');
   return errors;
 }
@@ -30,4 +32,11 @@ export function destinationName(raw) {
   const name = String(raw).replace(/\s+/g, ' ').trim();
   if (name.length < 2 || name.length > 80 || /^[=+@'\-]/.test(name) || /[<>\u0000-\u001f\u007f]/.test(raw)) throw Error('Destination: 2–80 karakter, tanpa formula, TAB, atau karakter kontrol.');
   return name;
+}
+
+export function normalizeDT(value, original = null) {
+  if (value === original) return value;
+  if (/^[0-9]+$/.test(value)) return `SAP_${value}`;
+  if (/^[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9]+$/.test(value)) return value;
+  throw Error('Nomor DT: masukkan angka unit (820) atau kode lengkap seperti SAP_820.');
 }

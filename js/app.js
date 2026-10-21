@@ -34,6 +34,11 @@ async function load({ restoreDraft = false, fillSession = false } = {}) {
   state.cache = snapshot.cache.find(c => c.id === 'destinations') || null;
   state.pending = snapshot.pending.find(p => p.id === 'destination') || null;
   if (restoreDraft) state.draft = snapshot.settings.find(s => s.id === 'draft')?.value || null;
+  if (state.draft && (!state.session || ['activationId', 'handoverId', 'operationDate', 'shift', 'scale'].some(k => state.draft.session?.[k] !== state.session[k]))) {
+    state.draft = null;
+    fillDraft();
+  }
+  if (state.view === 'operasional' && !state.draft) ensureDraft();
   renderSetup({ fillSession }); renderDestinations(); renderOperational(); renderReport();
 }
 async function changed(options = {}) {

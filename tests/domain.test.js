@@ -21,7 +21,7 @@ test('legacy numbered 10-column mapping is explicit and retains raw source', () 
   const legacy = ['46315-001', ...columns.slice(1,5), ...columns.slice(6)].join('\t');
   const p = parseWA(legacy)[0];
   assert.equal(p.raw, legacy); assert.equal(p.legacy, true); assert.equal(p.errors.length, 0); assert.ok(p.warnings.length);
-  assert.equal(exportLine(p.record), line);
+  assert.equal(exportLine(p.record), line.replace('46315', '46315-001'));
 });
 test('bad column count, missing empty TAB, bad time and serial are rejected without editing', () => {
   for (const malformed of [line.replace('\t\t','\t'), line.replace('06.59','52.00,0'), line.replace('46315','46315-00x'), line.replace('46315','60'), line.replace('46315','9999999'), line+'\t', line.replace('SAP_1014',' SAP_1014'), columns.map((v,i)=>i===5?'x':v).join('\t')]) {
@@ -123,4 +123,20 @@ test('owner time notation normalizes meaning and retains source for audit', () =
     assert.equal(report.rows[0].sourceTime,source); assert.equal(report.rows[0].raw,text);
   }
   for (const source of ['24','24.00','7.6','7.60','7.234','-1','7,2','7:20','7.',' 7.2','7.2\n']) assert.equal(normalizeTime(source),null,source);
+});
+
+
+test('second precision validation, legacy draft modes and backup remain compatible', async () => {
+  const { localTimeSeconds, timePrecision, draftTimeMode } = await import('../js/time-date.js');
+  assert.equal(localTimeSeconds(new Date(2026,9,21,14,25,59)),'14.25.59');
+  for (const value of ['00.00.00','23.59.59','14.25.12']) { assert.ok(validTime(value));assert.equal(timePrecision(value),'second'); }
+  assert.equal(timePrecision('14.25'),'minute');
+  for (const value of ['14.25.60','24.00.00','14.25.1','14.25.00\n','14.25\n']) assert.equal(validTime(value),false);
+  assert.equal(draftTimeMode({sourceTime:'14.25',values:{time:'14.25'}}),'auto');
+  assert.equal(draftTimeMode({sourceTime:'14.25',values:{time:'14.20'}}),'manual');
+  assert.equal(draftTimeMode({timeMode:'manual',sourceTime:'14.25',values:{time:'14.25'}}),'manual');
+  const row={...record,time:'14.25.59',timePrecision:'second',timeMode:'auto',sourceTime:'14.25.59',sourceSnapshot:{...record,time:'14.25.59'},revision:1,createdAt:'2026-10-21T00:00:00Z'};
+  const backup={application:'RKEF_TICKETING',version:1,stores:Object.fromEntries(STORES.map(n=>[n,n==='records'?[row]:[]]))};
+  assert.equal(validateBackup(backup),1);
+  assert.equal(inspectHandover(numberedLine(1).replace('06.59','14.25.59')).valid,false);
 });

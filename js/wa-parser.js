@@ -20,6 +20,7 @@ export function parseWA(text, existing = []) {
       let operationDate = '';
       if (serial) try { operationDate = dateFromSerial(serial); } catch (e) { errors.push(e.message); }
       record = { operationDate, ...(numbered && Number.isSafeInteger(Number(numbered[2])) && Number(numbered[2]) > 0 ? { ritaseNumber: Number(numbered[2]) } : {}), dtNo: c[1], sourceCode: c[2], stockpile: c[3], pileId: c[4], productCode: c[6], dome: c[7], destination: c[8], time: normalizeTime(c[9]) ?? c[9], scale: c[10], note: '' };
+      if (normalizeTime(c[9]) === null) errors.push('Waktu sumber WA tidak valid; gunakan format menit yang disahkan.');
       errors.push(...validateRecord(record, { historical: true }));
       if (legacy) warnings.push('Lama: pemetaan 10 kolom → 11 kolom perlu disahkan (kolom kosong disisipkan setelah Pile ID).');
       if (!errors.length) {

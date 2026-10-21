@@ -20,7 +20,7 @@ export function renderReport() {
     el.innerHTML = options(state.records.filter(r => !r.deletedAt).map(r => r[k]), el.value);
   }
   const filters = Object.fromEntries(new FormData(form));
-  const records = filterRecords(state.records, filters).sort((a, b) => a.operationDate.localeCompare(b.operationDate) || a.time.localeCompare(b.time) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  const records = filterRecords(state.records, filters).sort((a, b) => a.operationDate.localeCompare(b.operationDate) || (a.scale === b.scale && a.ritaseNumber && b.ritaseNumber ? a.ritaseNumber - b.ritaseNumber : 0) || a.time.localeCompare(b.time) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   $('#report-count').textContent = records.length;
   $('#report-description').textContent = filters.origin === 'local' ? 'Input lokal sesuai filter. Histori handover tidak ikut otomatis.' : filters.origin === 'import' ? 'Histori dari handover yang sudah disahkan.' : 'Semua sumber dipilih. Periksa potensi tumpang tindih handover.';
   $('#report-output').value = exportWA(records);
