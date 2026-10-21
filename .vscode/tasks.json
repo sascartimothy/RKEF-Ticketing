@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "RKEF: test Apps Script contract (mock)",
+      "label": "RKEF: test frontend and Apps Script contract (mock)",
       "type": "shell",
       "command": "npm run test",
       "group": {
@@ -12,7 +12,7 @@
       "problemMatcher": []
     },
     {
-      "label": "RKEF: local integration test",
+      "label": "RKEF: local PWA server (no deployment)",
       "type": "shell",
       "command": "npm run dev",
       "isBackground": true,

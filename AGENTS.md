@@ -1,10 +1,12 @@
 # Codex instructions — RKEF Ticketing
 
 ## Current phase
-Pre-build infrastructure validation. Do not build the full PWA until integration tests on the target devices have passed and the PRD is approved.
+Full PWA implementation explicitly authorized by the owner on 21 October 2026, LOCAL ONLY. This authorization supersedes the former pre-build/HOLD instruction. Build and test the complete application locally while keeping real-device / Google integration as unverified release gates.
+
+Do not run git add, commit, push, pull, reset, clean, or any deployment command. Do not change remotes, GitHub, Pages settings, or Apps Script deployments. The owner manages Git and deployment.
 
 ## Source of truth
-- `PRD_RKEF_Ticketing_v0.9.md` for current high-level scope, supplemented by `CODEX_ONE_SHOT_PROMPT.md` only once implementation is approved.
+- `PRD_RKEF_Ticketing_v0.9.md` and `CODEX_ONE_SHOT_PROMPT.md` define the approved local implementation scope, supplemented by the owner's explicit instructions.
 - `apps-script/Code.gs` is a reference copy of the currently deployed Apps Script candidate. Do **not** assume editing it locally updates the /exec deployment. Script versions require redeployment by the owner.
 - `docs/config.js` is PUBLIC non-secret configuration, holding the Apps Script URL. Do not place secrets in the GitHub Pages source.
 
@@ -12,7 +14,7 @@ Pre-build infrastructure validation. Do not build the full PWA until integration
 - Exactly three application views: **Setup**, **Operasional**, **Report**.
 - Frontend: HTML, CSS, vanilla JS PWA; GitHub Pages at `/RKEF-Ticketing/` (relative asset paths).
 - NO Firebase and NO Google login for operators.
-- Google Sheets is for **Destination** shared master only; anonymous Apps Script bridge must pass actual phone/browser tests before build.
+- Google Sheets is for **Destination** shared master only; anonymous Apps Script bridge must pass actual phone/browser tests before operational release. UI implementation may proceed locally and must show integration errors honestly.
 - Ritase records, local stockpile & dome options, and session data are stored in **IndexedDB per phone**; no automatic multi-phone ritase sync.
 - Operators paste WhatsApp report to initialize/verify the next shift and copy report text to hand over.
 - Stockpile/Pile ID and product/dome mappings derive from the last approved WhatsApp report plus explicitly entered local options. Never silently invent master entries.

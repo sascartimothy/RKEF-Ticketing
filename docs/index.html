@@ -1,99 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RKEF Ticketing — Uji Integrasi Destination</title>
-<style>
-:root{font-family:system-ui,-apple-system,Arial,sans-serif;color-scheme:light}body{max-width:780px;margin:20px auto;padding:0 16px;line-height:1.5;background:#f7f9fc;color:#12213a}
-section{background:white;border:1px solid #dce4ee;border-radius:14px;padding:16px;margin:12px 0}h1{font-size:1.45rem}h2{font-size:1.1rem}label{display:block;margin-bottom:6px;font-weight:600}input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #aab9c9;border-radius:8px}button{padding:10px 14px;background:#174d82;color:white;border:0;border-radius:9px;margin:8px 6px 8px 0;cursor:pointer}button:disabled{background:#aaa}pre{white-space:pre-wrap;word-break:break-word;background:#eff4fa;padding:12px;border-radius:9px;min-height:4em}small{color:#44576b}.bad{color:#b42318}.ok{color:#146c43}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102c3a">
+  <meta name="description" content="Pencatatan ritase lokal dan handover WhatsApp RKEF.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>RKEF Ticketing</title>
 </head>
 <body>
-<h1>RKEF Ticketing — Uji Apps Script tanpa login</h1>
-<p>Halaman khusus <strong>integration gate</strong>, bukan aplikasi operasional. Jalankan di Chrome HP / mode incognito dari origin GitHub Pages. Jangan memasukkan data produksi palsu.</p>
-<section>
-<label for="endpoint">Apps Script Web App URL (/exec)</label>
-<input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/DEPLOYMENT_ID/exec" autocomplete="off" />
-<button id="health">1. Tes akses anonim</button><button id="list">2. Baca Destination</button>
-<small>Tes GET memakai JSONP, bukan fetch JSON lintas-origin yang belum diverifikasi mendukung CORS.</small>
-</section>
-<section>
-<h2>3. Tes tambah Destination</h2>
-<p>Menambah baris sungguhan pada MASTER_DESTINATION. Gunakan satu nama uji yang unik; setelah selesai, nonaktifkan atau hapus baris uji lewat Google Sheets.</p>
-<label for="newName">Nama uji</label><input id="newName" maxlength="80" />
-<button id="add">Kirim tambah Destination</button>
-<small>Form POST ke iframe tersembunyi; hasilnya dicek ulang melalui GET (request_id), bukan sekadar menganggap form terkirim.</small>
-</section>
-<section><h2>Hasil tes</h2><pre id="output">Belum ada pengujian.</pre></section>
-<script src="./config.js"></script>
-<script>
-'use strict';
-const endpoint = document.getElementById('endpoint');
-endpoint.value = (window.RKEF_CONFIG && window.RKEF_CONFIG.appsScriptUrl) || ''; 
-const output = document.getElementById('output');
-const newName = document.getElementById('newName');
-newName.value = 'TEST-RKEF-' + Date.now().toString(36).toUpperCase();
-const print = line => {output.textContent = new Date().toLocaleTimeString('id-ID') + '  ' + line + '\n' + output.textContent;};
-function validURL() {
-  const url = endpoint.value.trim();
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url)) throw Error('Isi URL deploy Apps Script yang berakhir /exec');
-  return url.split('?')[0];
-}
-let counter = 0;
-function jsonp(action, timeout=12000) {
-  const url = validURL();
-  const cb = '_rkef_' + String(Date.now()) + '_' + (++counter);
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    let done = false;
-    const cleanup = () => {delete window[cb]; script.remove();clearTimeout(timer);};
-    const fail = e => {if(!done){done=true;cleanup();reject(e);}};
-    const timer = setTimeout(() => fail(Error('Timeout. Cek deployment Anyone/anonymous dan URL.')),timeout);
-    window[cb] = data => {if(!done){done=true;cleanup();resolve(data);}};
-    script.onerror = () => fail(Error('Gagal memuat script JSONP dari Apps Script.'));
-    script.src = url + '?action=' + encodeURIComponent(action) + '&callback=' + cb + '&_=' + Date.now();
-    document.head.appendChild(script);
-  });
-}
-async function view(action) { try {const r=await jsonp(action);print(JSON.stringify(r,null,2));}catch(e){print('ERROR: '+e.message);} }
-document.getElementById('health').onclick=()=>view('health');
-document.getElementById('list').onclick=()=>view('list');
-const pause = ms=>new Promise(r=>setTimeout(r,ms));
-function submitForm(name,requestId){
-  const url = validURL();
-  const iframe=document.createElement('iframe');
-  iframe.name='rkef_post_'+Date.now();iframe.style.display='none';
-  const form=document.createElement('form');form.method='POST';form.action=url;form.target=iframe.name;form.style.display='none';
-  [['action','addDestination'],['name',name],['request_id',requestId]].forEach(([k,v])=>{
-    const input=document.createElement('input');input.name=k;input.value=v;form.appendChild(input);
-  });
-  document.body.append(iframe,form);form.submit();
-  setTimeout(()=>{form.remove();iframe.remove();},45000);
-}
-let busy=false;
-document.getElementById('add').onclick=async()=>{
-  if(busy)return;
-  const name=newName.value.trim();
-  if(name.length<2||name.length>80)return print('Nama harus 2–80 karakter.');
-  const requestId='test_'+(crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):(Date.now()+'_'+Math.random().toString(36).slice(2)));
-  try{
-    busy=true; const before=await jsonp('list');
-    if(!before.ok)throw Error('Preflight read gagal: '+JSON.stringify(before));
-    if(before.destinations.some(x=>x.destination_name.toUpperCase()===name.toUpperCase()))throw Error('Nama sudah ada di Google Sheet. Ganti nama uji.');
-    print('Mengirim request_id='+requestId+'; menunggu konfirmasi READ-BACK...');
-    submitForm(name,requestId);
-    let found=null;
-    for(let i=1;i<=7;i++) {
-      await pause(2500);
-      const data=await jsonp('list');
-      if(!data.ok)throw Error('Read-back gagal: '+JSON.stringify(data));
-      found=data.destinations.find(x=>x.request_id===requestId && x.destination_name===name);
-      if(found)break;
-    }
-    print(found ? 'PASS: Destination muncul di Google Sheets dengan request_id yang sama. '+JSON.stringify(found) :
-      'BELUM TERVERIFIKASI: tidak ditemukan dalam 17,5 detik. Cek Apps Script Executions / Google Sheet. Jangan klaim tersimpan.');
-  }catch(e){print('ERROR: '+e.message);}finally{busy=false;}
-};
-</script>
+  <a class="skip" href="#main">Langsung ke isi</a>
+  <header class="app-header">
+    <div class="header-inner"><a class="brand" href="#setup" aria-label="RKEF Ticketing, Setup"><span class="brand-icon" aria-hidden="true">R</span><span>RKEF <b>Ticketing</b><small>CATAT RITASE · JAGA HANDOVER</small></span></a>
+      <div class="header-actions"><span id="network" class="badge" role="status">Memeriksa koneksi</span><button id="install" class="button-quiet" hidden>Instal aplikasi</button></div>
+    </div>
+  </header>
+  <div class="session-bar"><div id="session-summary">Belum ada sesi aktif. Lengkapi Setup untuk mulai mencatat.</div><span class="local-label">Penyimpanan di perangkat ini</span></div>
+  <div id="storage-error" class="alert danger persistent" role="alert" hidden></div>
+  <noscript><p class="alert danger">Aktifkan JavaScript untuk membuka penyimpanan lokal dan menjalankan RKEF Ticketing.</p></noscript>
+  <main id="main" tabindex="-1" inert aria-busy="true">
+    <section id="view-setup" class="view" aria-labelledby="title-setup">
+      <div class="page-heading"><div><p class="eyebrow">01 / PERSIAPAN SHIFT</p><h1 id="title-setup" tabindex="-1">Siapkan sesi kerja</h1><p>Pastikan identitas shift dan pilihan material sebelum mulai.</p></div><span class="page-tag">SETUP</span></div>
+      <div class="columns">
+        <div class="stack">
+          <article class="card"><div class="card-heading"><h2>Sesi operasional</h2><span class="badge subtle" id="session-state">Belum aktif</span></div>
+            <form id="session-form"><div class="form-grid">
+              <label>Tanggal operasi<input name="operationDate" type="date" required></label>
+              <label>Shift<select name="shift" required></select></label>
+              <label>Lokasi timbangan<input name="scale" list="scale-options" placeholder="Isi nama / kode timbangan" maxlength="100" required></label>
+              <label>Checker<input name="checker" list="checker-options" placeholder="Nama checker" maxlength="100" required></label>
+            </div><p class="hint">Tanggal tetap mengikuti sesi meski melewati tengah malam. Jam shift tidak diasumsikan.</p><button class="primary full" type="submit">Simpan & aktifkan sesi <span aria-hidden="true">→</span></button></form>
+          </article>
+          <article class="card"><div class="card-heading"><div><p class="eyebrow">HANDOVER MANUAL</p><h2>Impor laporan WhatsApp</h2></div></div>
+            <p>Tempel teks TAB dari shift sebelumnya. Histori impor terpisah dari ritase input lokal.</p>
+            <label for="wa-source">Teks laporan asli (10 atau 11 kolom)</label><textarea id="wa-source" rows="5" spellcheck="false" placeholder="Tempel laporan WhatsApp di sini…"></textarea>
+            <div class="button-row"><button id="preview-import" class="secondary">Periksa & preview</button><span class="hint">Teks sumber tidak diperbaiki otomatis.</span></div>
+            <div id="import-preview" hidden></div>
+          </article>
+          <article class="card"><h2>Pilihan lokal</h2><p>Tambahkan atau koreksi pasangan material, identitas petugas, dan daftar shift di perangkat ini.</p>
+            <form id="master-form"><label>Jenis pilihan<select id="master-kind" name="kind"><option value="stock">Stockpile / Pile ID / Source Code</option><option value="product">Product / Dome / Destination</option><option value="scale">Timbangan</option><option value="checker">Checker</option><option value="shift">Shift</option></select></label>
+              <div id="master-fields" class="form-grid"></div>
+              <div class="button-row"><button class="secondary" type="submit" id="save-master">Simpan pilihan lokal</button><button type="button" id="cancel-master" class="button-quiet" hidden>Batal koreksi</button></div>
+            </form><p class="hint">Destination pada pasangan lokal tidak dikirim ke Google Sheets. Gunakan panel Destination untuk menambah master bersama.</p>
+            <details><summary>Lihat & perbaiki pilihan tersimpan <span id="master-count"></span></summary><div id="master-list" class="master-list"></div></details>
+          </article>
+        </div>
+        <aside class="stack">
+          <article class="card"><div class="card-heading"><div><p class="eyebrow">MASTER BERSAMA</p><h2>Destination</h2></div><span id="destination-count" class="number-badge">0</span></div>
+            <div id="sync-state" class="alert" role="status">Belum ada snapshot Destination.</div>
+            <div class="button-row"><button id="refresh-destination" class="secondary">↻ Refresh</button><button id="health" class="button-quiet">Tes koneksi</button></div>
+            <div id="destination-list" class="destination-list"></div>
+            <hr><form id="destination-form"><label>Tambah Destination ke Sheets<input name="name" placeholder="Nama Destination baru" minlength="2" maxlength="80" required></label><button class="primary full" type="submit">Tambah & verifikasi</button></form>
+            <div id="pending-destination" class="alert warning" hidden></div>
+            <p class="hint">Hanya Destination yang dibagikan. Ritase dan checker tetap lokal. Penambahan memerlukan koneksi dan read-back.</p>
+          </article>
+          <article class="card note-card"><span class="eyebrow">SEBELUM MULAI</span><h2>Data Anda ada di HP ini</h2><p>Dua HP tidak berbagi ritase otomatis. Handover memakai teks WhatsApp; unduh backup JSON secara berkala di Report.</p><p class="hint">Integrasi Android / Google Sheets live belum dinyatakan lulus. <a href="./integration-test.html" target="_blank" rel="noopener">Buka alat uji integrasi ↗</a></p><div class="button-row"><button id="persist-storage" class="button-quiet">Minta penyimpanan persisten</button></div><p id="storage-info" class="hint"></p><p id="pwa-state" class="hint" role="status"></p></article>
+        </aside>
+      </div>
+    </section>
+    <section id="view-operasional" class="view" aria-labelledby="title-operasional" hidden>
+      <div class="page-heading"><div><p class="eyebrow">02 / PENCATATAN LAPANGAN</p><h1 id="title-operasional" tabindex="-1">Input ritase</h1><p>Isi transaksi. Data tersimpan di perangkat setelah konfirmasi penyimpanan.</p></div><span class="page-tag">OPERASIONAL</span></div>
+      <div class="columns operation-columns"><div class="stack">
+        <div id="no-session" class="alert warning" hidden>Aktifkan sesi di <a href="#setup">Setup</a> untuk mencatat ritase.</div>
+        <article class="card entry-card"><div class="card-heading"><h2 id="entry-title">Ritase baru</h2><button id="new-entry" class="button-quiet" type="button">+ Form baru</button></div>
+          <form id="entry-form"><fieldset id="entry-fields"><label class="large-label">DT No<input name="dtNo" list="dt-options" placeholder="Nomor dump truck" autocomplete="off" maxlength="100" required></label>
+            <label class="quick-label">Pilih pasangan Stockpile / Pile<select id="stock-quick"><option value="">Pilih pasangan tersimpan…</option></select></label>
+            <div class="form-grid"><label>Stockpile<input name="stockpile" list="stock-options" required maxlength="100"></label><label>Pile ID<input name="pileId" list="pile-options" required maxlength="100"></label></div>
+            <label>Source Code<input name="sourceCode" list="source-options" required maxlength="100"></label>
+            <label class="quick-label">Pilih pasangan Product / Dome<select id="product-quick"><option value="">Pilih pasangan tersimpan…</option></select></label>
+            <div class="form-grid"><label>Product Code<input name="productCode" list="product-options" required maxlength="100"></label><label>Dome<input name="dome" list="dome-options" required maxlength="100"></label></div>
+            <label>Destination<input name="destination" list="destination-options" required maxlength="100"></label>
+            <div class="form-grid"><label>Waktu (HH.mm)<input name="time" inputmode="decimal" placeholder="06.59" pattern="([01][0-9]|2[0-3])\.[0-5][0-9]" maxlength="5" required aria-describedby="time-hint"></label><div class="time-info"><small id="time-hint">Jam perangkat saat form dibuka; dapat diedit.</small><span id="source-time" class="hint"></span></div></div>
+            <label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label>
+            <div id="entry-context" class="context-box"></div><p id="draft-state" class="hint" role="status"></p>
+            <div id="entry-error" class="alert danger" role="alert" hidden></div>
+            <button id="save-entry" class="primary full save-button" type="submit">Simpan ritase</button>
+          </fieldset></form>
+        </article></div>
+        <aside class="stack"><article class="card"><div class="card-heading"><div><p class="eyebrow">PERANGKAT INI</p><h2>Riwayat input lokal</h2></div><span id="history-count" class="number-badge">0</span></div><p class="hint">Terbaru lebih dahulu. Koreksi menyimpan snapshot awal dan jejak perubahan.</p><label>Cari riwayat<input id="history-search" type="search" placeholder="DT, tanggal, dome, destination…"></label><div id="history"></div><button id="more-history" class="button-quiet full" hidden>Tampilkan 30 berikutnya</button></article></aside>
+      </div>
+    </section>
+    <section id="view-report" class="view" aria-labelledby="title-report" hidden>
+      <div class="page-heading"><div><p class="eyebrow">03 / REKAP & HANDOVER</p><h1 id="title-report" tabindex="-1">Laporan ritase</h1><p>Periksa filter, lalu salin laporan untuk handover shift.</p></div><span class="page-tag">REPORT</span></div>
+      <article class="card"><form id="filter-form" class="filter-grid">
+        <label>Tanggal operasi<input type="date" name="operationDate"></label><label>Shift<select name="shift"></select></label><label>Timbangan<select name="scale"></select></label><label>Checker<select name="checker"></select></label><label>Stockpile<select name="stockpile"></select></label><label>Dome<select name="dome"></select></label><label>Destination<select name="destination"></select></label><label>Sumber data<select name="origin"><option value="local">Input lokal</option><option value="import">Histori impor</option><option value="">Semua sumber</option></select></label>
+      </form><div class="button-row"><button id="active-filter" class="secondary">Gunakan sesi aktif</button><button id="clear-filter" class="button-quiet">Kosongkan filter</button></div></article>
+      <div class="report-stats"><div><span class="eyebrow">SESUAI FILTER</span><div class="stat-number"><span id="report-count">0</span> <small>ritase</small></div></div><p id="report-description">Tidak ada transaksi.</p><span class="badge subtle">Jumlah transaksi · tanpa tonase</span></div>
+      <article class="card"><div class="card-heading"><h2>Preview WhatsApp</h2><span class="badge subtle">11 kolom TAB</span></div><p class="hint">Tanpa header. Kolom ke-6 kosong; tanggal serial Excel tanpa suffix; waktu HH.mm.</p><label for="report-output" class="sr-only">Laporan WhatsApp siap disalin</label><textarea id="report-output" rows="7" class="code" readonly spellcheck="false" placeholder="Belum ada ritase sesuai filter."></textarea><div class="button-row"><button id="copy-report" class="primary">Salin laporan</button><button id="export-txt" class="secondary">Unduh TXT</button></div>
+        <details><summary>Periksa transaksi & kolom</summary><div id="report-table" class="table-scroll"></div></details>
+      </article>
+      <article class="card"><div class="card-heading"><div><p class="eyebrow">CADANGAN PERANGKAT</p><h2>Backup & restore</h2></div></div><p>JSON memuat semua ritase, histori impor, master, sesi, cache, draft, dan log koreksi, termasuk ID internal. Simpan di tempat aman di luar browser.</p><button id="backup" class="secondary">↓ Unduh backup lengkap</button><p id="backup-state" class="hint"></p><hr><label>Pilih file backup JSON<input id="restore-file" type="file" accept=".json,application/json"></label><div id="restore-preview" hidden></div></article>
+    </section>
+  </main>
+  <nav class="bottom-nav" aria-label="Halaman utama"><a href="#setup" data-view="setup"><span aria-hidden="true">⚙</span>Setup</a><a href="#operasional" data-view="operasional"><span aria-hidden="true">＋</span>Operasional</a><a href="#report" data-view="report"><span aria-hidden="true">▤</span>Report</a></nav>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Konfirmasi</h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel" class="secondary">Batal</button><button value="ok" class="primary" id="confirm-ok">Lanjutkan</button></div></form></dialog>
+  <dialog id="audit-dialog"><h2>Jejak transaksi</h2><div id="audit-content"></div><form method="dialog"><button class="secondary">Tutup</button></form></dialog>
+  <datalist id="scale-options"></datalist><datalist id="checker-options"></datalist><datalist id="dt-options"></datalist><datalist id="stock-options"></datalist><datalist id="pile-options"></datalist><datalist id="source-options"></datalist><datalist id="product-options"></datalist><datalist id="dome-options"></datalist><datalist id="destination-options"></datalist>
+  <script src="./config.js"></script><script type="module" src="./js/app.js"></script>
 </body>
 </html>

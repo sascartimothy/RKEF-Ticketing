@@ -1,8 +1,10 @@
-# Codex one-pass implementation prompt — HOLD until integration gate passed
+# Codex implementation prompt — local implementation authorized
 
-Read `AGENTS.md`, `PRD_RKEF_Ticketing_v0.9.md`, and `SETUP_VSCODE_GITHUB.md`. Before implementing, report any remaining blocking ambiguity instead of inventing values. The architecture is fixed: vanilla HTML/CSS/JS PWA on GitHub Pages, IndexedDB per phone for ritase, shared Destination-only Google Sheet via anonymously deployed Apps Script, and manual WhatsApp handover. No Firebase or user Google login.
+**Authorization, 21 October 2026:** build the complete PWA locally now. The former HOLD/pre-build gate is superseded for implementation. Real-phone and live integration tests remain release acceptance gates, not a reason to stop local UI work. No Git mutations, remote changes, publication, or Apps Script redeployment; the owner handles those actions.
 
-When authorized to build, replace the diagnostic `docs/index.html` with a production mobile-first PWA providing exactly three user-facing views:
+Read `AGENTS.md`, `PRD_RKEF_Ticketing_v0.9.md`, and `SETUP_VSCODE_GITHUB.md`. Unknown operational values are editable settings filled by operators; never invent official master entries or shift hours. The architecture is fixed: vanilla HTML/CSS/JS PWA, future GitHub Pages, IndexedDB per phone for ritase, shared Destination-only Google Sheet via anonymously deployed Apps Script, and manual WhatsApp handover. No Firebase or operator Google login.
+
+Build `docs/index.html` as a complete mobile-first PWA providing exactly three main views; retain `integration-test.html` as a separate diagnostic utility:
 
 1. **Setup** — operation date, shift, scale, checker; import last-shift WhatsApp TSV; read/cached Destination master; add Destination with remote write-and-read-back confirmation; manage local stockpile/dome option overrides; clear offline/sync status. Do not presume scale/checker names that have not been specified.
 2. **Operasional** — fast truck ritase entry, device-local current time default (editable), source/product and destination selectors using the approved mappings, local persistence with unique ID, robust validation, history and permitted correction with audit trail.
@@ -10,4 +12,4 @@ When authorized to build, replace the diagnostic `docs/index.html` with a produc
 
 Engineering: test date-to-Excel serial conversion across time zones; IndexedDB schema and migrations; explicit recovery if storage unavailable, data corruption, or phone refresh; accessibility; PWA manifest/service worker (HTTPS and proper GitHub Pages subpath); responsive narrow-screen styling; strong error messages; no frameworks unless PRD explicitly authorizes them. Do not ship mock transactions or leak private sample WA reports into public repo. For Destination bridge use `docs/config.js` and preserve read-back by `request_id`; show 'pending' when not confirmed. For import, accept legacy 10-column numbered WA reports only after confirming mapping, and new 11-column report; never silently drop malformed data.
 
-Deliver completed code, automated tests (format/parser/validation/store/date/duplicate handling), run all tests, inspect diff for unintended changes, list deployment steps, and distinguish mocked tests from tests that can only be done on real phones.
+Deliver completed local code and automated tests (format/parser/validation/store/date/duplicate handling), run tests and the local dev server, review files for unintended changes, and distinguish mocked, desktop browser, and real-phone/live tests. Do not run Git or deployment commands. See README and LOCAL_TEST_RESULTS for the local handoff.

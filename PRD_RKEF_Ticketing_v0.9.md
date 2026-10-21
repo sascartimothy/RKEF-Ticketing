@@ -1,7 +1,7 @@
-# RKEF Ticketing — PRD v0.9 (Pre-Build Integration Gate)
+# RKEF Ticketing — PRD v0.9 (Local Build Authorized)
 
 **Tanggal:** 21 Oktober 2026  
-**Status:** DRAFT, arsitektur disepakati; Apps Script live/browser belum diuji.  
+**Status:** Implementasi penuh lokal diizinkan owner pada 21 Oktober 2026. Gate HOLD/pre-build digantikan untuk pembangunan; penerimaan operasional dan Apps Script live/HP tetap belum disahkan. Tidak ada izin Git/deployment.  
 **Basis:** Workbook `Form-Daily_ROS_Production_Smartphone (Update 250826) v2.xlsx`, sheet `Name`, `Valid Data`, `Ritase`, `T.Ksng`, `Sum`, dan sampel 428 baris ritase WhatsApp. PRD ini meneruskan keputusan v0.8 tanpa mengubah kebutuhan operasional.
 
 ## 1. Keputusan final arsitektur v1
@@ -50,7 +50,7 @@ Tidak ada data ritase, nama DT, checker, stockpile, maupun dome disimpan di Goog
 - Dengan endpoint publik tanpa login, setiap orang yang menemukan endpoint dapat mencoba melakukan penambahan. Tidak ada proteksi identitas operator; user menerima trade-off ini.
 - Perubahan kode script memerlukan pembaruan versi deployment, bukan hanya save editor.
 
-Syarat nyata: aplikasi web `/exec` harus dapat diakses secara anonim dan desain lintas-origin di atas **harus lolos uji browser di HP operasional**. Hasil uji lokal tidak memenuhi syarat ini.
+Syarat rilis operasional: aplikasi web `/exec` harus dapat diakses secara anonim dan desain lintas-origin di atas **harus lolos uji browser di HP operasional**. Pembangunan lokal sudah diizinkan sambil menampilkan error integrasi; hasil uji lokal tidak memenuhi gate rilis ini.
 
 ## 4. Halaman Setup
 
@@ -97,9 +97,13 @@ Kolom ke-6 sengaja kosong. Kode tanggal `46315` tanpa suffix `-001`. Nama timban
 | GitHub repository tersedia | VERIFIED |
 | GitHub repository menerima commit dari connector | BELUM: error HTTP 403 |
 | GitHub Pages aktif | BELUM DIVERIFIKASI |
-| PWA operasional dibangun | BELUM, sesuai permintaan pre-build |
+| PWA tiga halaman dibangun lokal | SELESAI lokal; lihat README dan LOCAL_TEST_RESULTS.md |
+| Parser/export/date/bridge frontend | PASS tes Node lokal; Google services mock |
+| IndexedDB/UI/offline subpath | PASS Chrome desktop headless lokal; bukan Android/live |
 
-## 8. Release gates untuk satu kali Codex build
+## 8. Release gates setelah local build
+
+Owner mengizinkan implementasi penuh lokal sebelum gate di bawah selesai. Daftar ini berlaku untuk uji terima/rilis; tidak memblokir pembangunan lokal. Nama timbangan/checker dan pilihan shift diisi operator di Setup. Tidak ada timbangan kedua atau jam shift yang diasumsikan.
 
 **GATE A — Infrastruktur**
 - [ ] Deploy Apps Script anon dengan `execute as me`.
@@ -108,13 +112,13 @@ Kolom ke-6 sengaja kosong. Kode tanggal `46315` tanpa suffix `-001`. Nama timban
 - [ ] Repository memiliki folder `/docs` dan GitHub Pages berjalan.
 
 **GATE B — Operasional**
-- [ ] Konfirmasi 2 nama/kode timbangan dan bagaimana checker dipilih (daftar offline lokal).
+- [ ] Operator mengisi/memeriksa nama/kode timbangan dan checker di daftar offline lokal.
 - [ ] Konfirmasi waktu shift, zona waktu dan tanggal operasi.
 - [ ] Konfirmasi status T.Ksng/Gtg.Ksng pada v1, serta cara menghitung ritase laporan gabungan.
 - [ ] Konfirmasi backup dan retensi lokal agar data ritase tidak hilang jika HP rusak atau browser dibersihkan.
 - [ ] Uji data WA minimal: 10 kolom lama, 11 kolom baru, waktu invalid, identitas timbangan hilang, duplikat identik, format tab.
 
-Setelah GATE A dan B disetujui, Codex akan menerima satu PRD beku + prompt lengkap, membangun semua modul dan test dalam satu perubahan. `Sekali build` berarti satu paket implementasi menyeluruh, **bukan** jaminan bebas bug/tidak perlu uji terima.
+Implementasi lokal menyediakan seluruh modul dan pengujian. Owner tetap menangani Git serta deployment secara terpisah setelah review. Pembangunan ini **bukan** jaminan bebas bug atau pengganti uji terima pada HP target. Status VERIFIED terdahulu pada tabel merupakan catatan pemeriksaan sebelum sesi build, bukan verifikasi ulang layanan dalam sesi ini.
 
 ## 9. Rujukan implementasi
 
