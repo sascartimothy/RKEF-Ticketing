@@ -111,7 +111,12 @@ async function ready() {
       console.log(await evaluate(clockSuite));
       await cdp('Page.reload',{});await pause(500);await ready();
     }
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/report-browser.js'),'utf8')));
     const qa=path.join(root,'private-data','qa');fs.mkdirSync(qa,{recursive:true});
+    await evaluate("location.hash='report';document.querySelector('#report-preview').open=true;document.querySelector('#toast').hidden=true;window.scrollTo(0,0)");await pause(200);
+    console.log(await evaluate("if(document.documentElement.scrollWidth>360)throw Error('Report overflow at 360px');'PASS Report no horizontal overflow at 360px'"));
+    const reportLayout=await cdp('Page.getLayoutMetrics');
+    fs.writeFileSync(path.join(qa,'report-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:360,height:reportLayout.cssContentSize.height,scale:1}})).data,'base64'));
     await evaluate("location.hash='setup'");await pause(200);
     console.log(await evaluate(`(()=>{const cards=[...document.querySelectorAll('#view-setup article')];if(document.documentElement.scrollWidth>360)throw Error('Setup overflow at 360px');for(let i=1;i<cards.length;i++)if(cards[i].getBoundingClientRect().top<cards[i-1].getBoundingClientRect().bottom)throw Error('Setup cards not vertical');return 'PASS Setup vertical order and no horizontal overflow at 360px';})()`));
     const mobileLayout=await cdp('Page.getLayoutMetrics');
@@ -136,7 +141,9 @@ async function ready() {
       const {Database}=await import('./js/database.js');const checkDb=await Database.open();
       if(!(await checkDb.all('audit')).some(a=>a.action==='renumber'))throw Error('Reload lost numbering audit');checkDb.db.close();
       if(document.querySelector('[name=time]').value!=='07.17')throw Error('Manual draft time lost on offline reload');
-      return 'PASS offline app shell, IndexedDB session, records, and edited draft after reload';
+      const {sessionReport}=await import('./js/wa-exporter.js');const report=sessionReport(state.records,state.session);
+      if(report.error || !report.total || report.text!==document.querySelector('#report-output').value || Number(document.querySelector('#report-count').textContent)!==report.total)throw Error('Offline reload Report inconsistent: '+report.error);
+      return 'PASS offline app shell, IndexedDB session, records, Report totals/WA, and edited draft after reload';
     })()`);console.log(offline);
     await cdp('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
     await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
@@ -175,6 +182,7 @@ async function ready() {
       for(let i=0;i<100&&!state.ready;i++)await new Promise(r=>setTimeout(r,30));
       if(!state.ready || state.session || state.draft)throw Error('Reload reactivated ended session/draft');
       if(state.records.some(r=>r.dtNo==='SAP_826'))throw Error('Session reset retained deleted history');
+      if(document.querySelector('#report-output').value || !document.querySelector('#copy-report').disabled || !document.querySelector('#report-sections').hidden)throw Error('Reset retained active Report');
       return 'PASS browser reload after full session reset removes active history without reactivating session or draft';
     })()`));
     if(errors.length)throw Error('Unhandled browser exceptions: '+errors.join('\n'));

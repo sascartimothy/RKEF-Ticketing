@@ -50,7 +50,7 @@ export function initSetup(ctx) {
       $('#wa-source').value = '';
       output.hidden = false; output.className = 'alert success';
       output.textContent = 'Sesi sebelumnya telah dihapus. Tempel laporan WhatsApp untuk memulai sesi baru.';
-      await ctx.changed(); ctx.applySessionFilter();
+      await ctx.changed(); ctx.renderReport();
       $('#wa-source').focus();
     } catch (error) {
       output.hidden = false; output.className = 'alert danger'; output.textContent = error.message;
@@ -66,7 +66,7 @@ export function initSetup(ctx) {
       try {
         await ctx.flushDraft();
         await ctx.db.saveChecker($('#checker-form').elements.checker.value, state.session);
-        await ctx.changed(); ctx.ensureDraft(); ctx.applySessionFilter();
+        await ctx.changed(); ctx.ensureDraft(); ctx.renderReport();
         feedback.className = 'alert success'; feedback.textContent = 'Checker tersimpan.';
       } catch (error) { feedback.className = 'alert danger'; feedback.textContent = error.message; }
       feedback.hidden = false;

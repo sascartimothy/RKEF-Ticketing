@@ -32,7 +32,7 @@ Do not run git add, commit, push, pull, reset, clean, or any deployment command.
 - Avoid false sync success: after writing a Destination, read back and verify `request_id`.
 - Add idempotent import behavior and deterministic data validation; flag bad source rows without silently editing them.
 - Never claim Android/Chrome live tests passed on the basis of mocked Node tests.
-- Keep a backup export of locally stored ritase. GitHub Pages files do not provide a database.
+- Owner Report v1.1.1 decision removes all user-facing JSON backup/restore, including recovery UI. Preserve internal database APIs and all stored data; document that complete metadata recovery after device loss is unavailable through the UI. GitHub Pages files do not provide a database.
 - Run `npm test` after changes to infrastructure files.
 - Run `npm run check:docs` for local Markdown targets, exact path case, and heading anchors. External links are not live-verified by this check.
 - `npm test` runs without a build; Node domain tests import root `js/`, and static checks verify root files, relative paths, and the public/offline inventories. Browser tests use root files on a fresh server/profile with synthetic data; never write live Sheets in automated tests.

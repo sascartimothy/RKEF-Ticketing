@@ -1,5 +1,28 @@
 # Hasil pengujian lokal
 
+## Report Pile ID dan Laporan WhatsApp v1.1.1 — 21 Oktober 2026
+
+Keputusan owner: **Informasi Sesi → Rekap Ritase per Pile ID + TOTAL → Laporan WhatsApp**, tanpa delapan filter dan tanpa card/alur Backup/Restore JSON pengguna (termasuk recovery UI). Checker hanya identitas sesi. Sumber Report seluruh ritase lokal aktif dengan tanggal/shift/timbangan, handover dan aktivasi sesuai; tidak menghitung histori impor, sesi lain/reset atau transaksi terhapus. API database internal tetap kompatibel; tidak ada perubahan schema v1, penghapusan data operator, Git mutation atau deployment.
+
+| Verifikasi | Hasil lokal |
+|---|---|
+| `npm.cmd test` | **PASS** — 41 tes Node, 12 assertion Apps Script mock, static workspace dan inventaris offline |
+| `npm.cmd run test:browser` | **PASS** — Edge headless lokal, origin/port/profil baru dan IndexedDB nyata dengan data sintetis; seluruh request eksternal diblokir |
+| `npm.cmd run check:docs` | **PASS** — target/case/anchor Markdown lokal; bukan verifikasi link eksternal |
+| `git diff --check` | **PASS** |
+| Rekap/domain | **PASS** — satu record satu ritase meskipun DT sama; isolasi tanggal/shift/timbangan/origin/handover/aktivasi; urut jumlah menurun lalu nama deterministik; TOTAL sama dengan transaksi dan baris WA; koreksi Pile ID dan nomor Opsi B tanpa counter rekap |
+| Kontrak/data invalid | **PASS** — 11 kolom TAB asli, kolom keenam kosong, suffix tersimpan, detik dibuang tanpa pembulatan/tanggal bergeser; NS lintas tengah malam, suffix 999/1000; nomor hilang/duplikat/gap, counter/UUID/kronologi rusak, provenance ambigu dan collision histori memblokir output |
+| UI Salin/TXT | **PASS** — 605 ritase DT sama pada IndexedDB sintetis; preview expandable tidak memangkas clipboard/TXT. Clipboard API dan fallback copy/seleksi diuji dengan mock; status berhasil/gagal sesuai hasil. TXT blob sama dengan seluruh teks clipboard. Ini bukan uji clipboard OS/HP atau folder unduhan aktual |
+| Data berubah di tab lain | **PASS** — aksi membaca snapshot sesi+record lagi, duplikat tersimpan sebelum refresh memblokir Salin/Unduh dan mengosongkan teks lama; pergantian aktivasi tidak menampilkan hasil sesi sebelumnya |
+| Empty/reset/reload | **PASS** — sesi kosong TOTAL 0, tanpa sesi tidak ada laporan; reset penuh lalu reload tidak mengaktifkan Report lama; reload offline mempertahankan total/WA terbaru dan data/koreksi/audit/draft |
+| UI/regresi | **PASS** — kontrol filter dan Backup/Restore tidak tersedia; Report tanpa overflow pada 360px dan screenshot diperiksa. Setup/Operasional, handover/reuse, reset atomik, koreksi popup, Opsi B, offline produksi serta transisi worker ke dev tetap lulus |
+
+Versi tetap **v1.1.1**; cache `rkef-shell-v1.1.1-report-piles`. Screenshot lokal di `private-data/qa/report-360.png` (ignored). File utama: `index.html`, `styles.css`, `js/report-ui.js`, `js/wa-exporter.js`; integrasi refresh pada `js/app.js`, `js/setup-ui.js`, `js/import-ui.js`; arahan backup usang dibersihkan dari `js/operational-ui.js`. API/implementasi `js/database.js` tidak berubah. Tes baru: `tests/report.test.js`, `tests/report-browser.js`; runner/regresi dan dokumentasi ikut diselaraskan.
+
+**Risiko/batasan:** Backup/Restore JSON di UI dihapus atas keputusan owner. Pemulihan seluruh metadata lokal setelah perangkat hilang/browser dibersihkan tidak tersedia melalui antarmuka. WA/TXT bukan backup metadata lengkap. OD-04 tersisa handover shift kosong; finalisasi/penguncian laporan terkirim tetap OD-09, serta OD-02/05/06/07/08/10/11 tetap sesuai spesifikasi. Semua record tersedia dan nomor konsisten bukan bukti operator telah menyelesaikan shift atau semua ritase lapangan telah dicatat.
+
+**NOT VERIFIED:** Android/Chrome HP, clipboard/download perangkat nyata, paste WhatsApp ke Excel, Google anonim/POST/read-back dua HP, Pages live. Hasil bagian lama di bawah adalah catatan historis; uraian filter/Backup UI sebelumnya telah digantikan keputusan Report ini.
+
 ## Input Waktu Manual Angka v1.1.1 — 21 Oktober 2026
 
 Penyebab: jam AUTO tidak diseleksi untuk penggantian langsung dan input manual hanya lolos sebagai waktu bertitik lengkap. Perbaikan memakai seleksi pada fokus/tap, sebelum edit/paste dan awal komposisi; fallback `input` untuk digit pertama. Fokus tanpa perubahan tetap AUTO. Formatter mempertahankan teks/kursor selama edit, lalu menormalkan nilai valid pada blur atau saat save sebelum validasi record. Nilai invalid dipertahankan; kosong/whitespace Ritase Baru langsung AUTO. Popup Koreksi memakai aturan angka yang sama, tidak menjalankan jam, dan menolak kosong. Draft manual mentah/parsial tetap disimpan sebagai draft, bukan transaksi valid.
@@ -40,7 +63,7 @@ Bukti tes browser menggunakan profil/server baru, data sintetis dan IndexedDB ny
 - Skenario wajib: paste 83 BDM, isi checker manual, simpan melalui UI tiga lokal 084/085/086, Batal mempertahankan snapshot, konfirmasi menghapus tiga lokal beserta auditnya. 83 histori impor dan receipt tetap sama. Paste ulang mengaktifkan NS 20/10/2026, next `46315-084`, checker kosong, tanpa duplikasi; isi checker manual dan save UI baru berhasil di nomor 084. Reload aktual mempertahankan sesi/data baru.
 - Scope: ONI, shift lain, tanggal lain dan aktivasi sebelumnya tetap utuh; tombstone aktif dihapus. Konfigurasi, master, receipt, cache Destination tetap sama. Konflik lokal yang dipertahankan masih menolak handover. Identitas ambigu menolak seluruh reset.
 - Atomik: injeksi kegagalan setelah write record/audit/settings mengembalikan seluruh snapshot. Draft ikut dihapus, stale autosave dan koreksi dari koneksi kedua ditolak. Tanpa sesi aktif, histori tidak dihapus.
-- UI: satu popup per tindakan, judul dan tombol destruktif sesuai permintaan, peringatan permanen dan backup; status proses, textarea kosong, input nonaktif, riwayat kosong, Report hanya 83 impor setelah reset. Reload aktual setelah reset tidak mengaktifkan sesi/draft lama atau memunculkan lokal yang dibuang.
+- UI: satu popup per tindakan, judul dan tombol destruktif sesuai permintaan, peringatan permanen dan backup; status proses, textarea kosong, input nonaktif, riwayat kosong, Report kini tidak menampilkan histori impor setelah reset (hasil/desain Report lama digantikan task Report di atas). Reload aktual setelah reset tidak mengaktifkan sesi/draft lama atau memunculkan lokal yang dibuang.
 - Backup versi 1 mendukung audit baru dan restore snapshot yang sama, tetap menerima audit `session-end` lama. Opsi B, popup koreksi, DT SAP, live clock, presisi detik, master material, WA HH.mm tanpa pembulatan, offline dan viewport 360px/1280px diuji oleh rangkaian regresi.
 - Runner reload menunggu main keluar dari status inert setelah load database selesai; sebelumnya pemeriksaan bisa terlalu dini. Assertion tie waktu di tes clock diperbaiki untuk memakai aturan createdAt lalu UUID; jam sintetis dapat memberi timestamp identik, sehingga urutan insert bukan jaminan urutan nomor.
 
@@ -230,8 +253,8 @@ Pemeriksaan daftar file terlacak untuk direktori data/backup/export serta pola k
 - [ ] Akses anonim Apps Script dari hosting target dan health/list live.
 - [ ] POST iframe Android menambah Destination nyata, read-back request_id cocok, refresh HP kedua.
 - [ ] Timeout nyata, berpindah koneksi, kuota layanan, reload cloud pending.
-- [ ] Clipboard WhatsApp, download TXT/JSON, dan pemilihan file restore pada HP.
-- [ ] Pemulihan backup antarperangkat, kapasitas data, retensi, dan kebiasaan backup operator.
+- [ ] Clipboard WhatsApp, download TXT dan paste Excel pada HP aktual. Backup/Restore JSON pengguna sudah dihapus; bukan gate UI yang masih harus diuji.
+- [ ] Prosedur pemulihan metadata di luar UI dan koordinasi antarperangkat, kapasitas data dan retensi; tidak ada fasilitas restore pengguna saat ini.
 - [ ] Operator memeriksa master/mapping, timbangan/checker, shift, dan tanggal operasi.
 - [ ] Owner meninjau file repository untuk publikasi root, mengatur Pages branch `main` + `/ (root)`, dan memverifikasi URL live serta penerimaan operasional.
 

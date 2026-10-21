@@ -53,7 +53,7 @@
           <p id="app-version"></p>
           <p id="pwa-state" class="hint" role="status"></p>
           <details><summary>Penyimpanan perangkat & diagnostik</summary>
-            <p class="hint">Ritase tetap di perangkat ini. Unduh backup JSON berkala di Report.</p>
+            <p class="hint">Ritase tetap di perangkat ini. Pemulihan metadata lengkap setelah kehilangan perangkat tidak tersedia melalui antarmuka aplikasi.</p>
             <button id="persist-storage" class="button-quiet">Minta penyimpanan persisten</button>
             <p id="storage-info" class="hint"></p>
             <a href="./integration-test.html" target="_blank" rel="noopener">Buka alat uji integrasi ↗</a>
@@ -87,15 +87,28 @@
       </div>
     </section>
     <section id="view-report" class="view" aria-labelledby="title-report" hidden>
-      <div class="page-heading"><div><p class="eyebrow">03 / REKAP & HANDOVER</p><h1 id="title-report" tabindex="-1">Laporan ritase</h1><p>Periksa filter, lalu salin laporan untuk handover shift.</p></div><span class="page-tag">REPORT</span></div>
-      <article class="card"><form id="filter-form" class="filter-grid">
-        <label>Tanggal operasi<input type="date" name="operationDate"></label><label>Shift<select name="shift"></select></label><label>Timbangan<select name="scale"></select></label><label>Checker<select name="checker"></select></label><label>Stockpile<select name="stockpile"></select></label><label>Dome<select name="dome"></select></label><label>Destination<select name="destination"></select></label><label>Sumber data<select name="origin"><option value="local">Input lokal</option><option value="import">Histori impor</option><option value="">Semua sumber</option></select></label>
-      </form><div class="button-row"><button id="active-filter" class="secondary">Gunakan sesi aktif</button><button id="clear-filter" class="button-quiet">Kosongkan filter</button></div></article>
-      <div class="report-stats"><div><span class="eyebrow">SESUAI FILTER</span><div class="stat-number"><span id="report-count">0</span> <small>ritase</small></div></div><p id="report-description">Tidak ada transaksi.</p><span class="badge subtle">Jumlah transaksi · tanpa tonase</span></div>
-      <article class="card"><div class="card-heading"><h2>Preview WhatsApp</h2><span class="badge subtle">11 kolom TAB</span></div><p class="hint">Tanpa header. Kolom ke-6 kosong; tanggal serial Excel + nomor tersimpan (data lama tanpa nomor masih tanpa suffix); waktu HH.mm.</p><label for="report-output" class="sr-only">Laporan WhatsApp siap disalin</label><textarea id="report-output" rows="7" class="code" readonly spellcheck="false" placeholder="Belum ada ritase sesuai filter."></textarea><div class="button-row"><button id="copy-report" class="primary">Salin laporan</button><button id="export-txt" class="secondary">Unduh TXT</button></div>
-        <details><summary>Periksa transaksi & kolom</summary><div id="report-table" class="table-scroll"></div></details>
-      </article>
-      <article class="card"><div class="card-heading"><div><p class="eyebrow">CADANGAN PERANGKAT</p><h2>Backup & restore</h2></div></div><p>JSON memuat semua ritase, histori impor, master, sesi, cache, draft, dan log koreksi, termasuk ID internal. Simpan di tempat aman di luar browser.</p><button id="backup" class="secondary">↓ Unduh backup lengkap</button><p id="backup-state" class="hint"></p><hr><label>Pilih file backup JSON<input id="restore-file" type="file" accept=".json,application/json"></label><div id="restore-preview" hidden></div></article>
+      <div class="page-heading"><div><p class="eyebrow">03 / REKAP & HANDOVER</p><h1 id="title-report" tabindex="-1">Laporan ritase</h1><p>Rekap otomatis sesi aktif dan laporan lengkap untuk handover shift.</p></div><span class="page-tag">REPORT</span></div>
+      <p id="report-empty" class="empty" hidden></p>
+      <div id="report-sections" class="stack report-stack">
+        <article class="card"><div class="card-heading"><h2>Informasi sesi</h2></div>
+          <dl id="report-session" class="report-session"></dl>
+          <div class="report-total"><span>TOTAL RITASE</span><strong id="report-count">0</strong></div>
+        </article>
+        <article class="card"><div class="card-heading"><h2>Rekap ritase per Pile ID</h2></div>
+          <div id="report-piles"></div>
+        </article>
+        <article class="card"><div class="card-heading"><h2>Laporan WhatsApp</h2><span class="badge subtle">11 kolom TAB</span></div>
+          <p id="report-description" class="hint"></p>
+          <div id="report-error" class="alert danger" role="alert" hidden></div>
+          <div class="button-row"><button id="copy-report" class="primary" disabled>Salin Laporan WhatsApp</button><button id="export-txt" class="secondary" disabled>Unduh TXT</button></div>
+          <p id="report-status" class="hint" role="status"></p>
+          <details id="report-preview"><summary>Periksa teks laporan lengkap</summary>
+            <p class="hint">Tanpa header. Kolom keenam kosong; serial Excel + nomor tersimpan; waktu HH.mm tanpa pembulatan. Seluruh transaksi disalin, termasuk baris di luar area yang terlihat.</p>
+            <label for="report-output" class="sr-only">Laporan WhatsApp lengkap</label><textarea id="report-output" rows="7" class="code" readonly spellcheck="false" wrap="off" placeholder="Belum ada laporan."></textarea>
+          </details>
+          <p class="hint">Nomor dapat berubah setelah koreksi. Periksa laporan yang pernah dikirim; aplikasi belum memiliki penguncian/finalisasi laporan.</p>
+        </article>
+      </div>
     </section>
   </main>
   <nav class="bottom-nav" aria-label="Halaman utama"><a href="#setup" data-view="setup"><span aria-hidden="true">⚙</span>Setup</a><a href="#operasional" data-view="operasional"><span aria-hidden="true">＋</span>Operasional</a><a href="#report" data-view="report"><span aria-hidden="true">▤</span>Report</a></nav>

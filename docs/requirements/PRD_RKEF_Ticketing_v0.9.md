@@ -71,6 +71,8 @@ Syarat rilis operasional: aplikasi web `/exec` harus dapat diakses secara anonim
 
 ## 6. Halaman Report
 
+**Historis — DIGANTIKAN keputusan Report v1.1.1:** [Spesifikasi operasional](RKEF_OPERATIONAL_SPEC.md#9-tiga-halaman-utama-three-main-application-pages) menetapkan seluruh ritase lokal sesi aktif tanpa filter, rekap Pile ID + TOTAL, WA 11 TAB dengan suffix tersimpan, serta penghapusan Backup/Restore JSON pengguna. Butir desain lama di bawah bukan instruksi operator saat ini.
+
 - Filter tanggal, shift, timbangan, checker dan Destination.
 - Laporan 11 kolom TAB persis:
 

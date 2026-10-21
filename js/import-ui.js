@@ -33,7 +33,7 @@ export function initImport(ctx) {
         await ctx.flushDraft();
         if (state.draft?.dirty || state.draft?.editId) throw Error('Selesaikan draft aktif sebelum handover.');
         const result = await ctx.db.importHandover({ source, decisions: { automatic: true, expectedSession } });
-        await ctx.changed(); ctx.ensureDraft(); ctx.applySessionFilter();
+        await ctx.changed(); ctx.ensureDraft(); ctx.renderReport();
         if (!result.activated || !state.session?.handoverConfirmed) throw Error('Sesi operasional belum aktif. Periksa penyimpanan dan muat ulang.');
         status('Handover berhasil. Sesi operasional telah diaktifkan.', 'success');
       } catch (error) {

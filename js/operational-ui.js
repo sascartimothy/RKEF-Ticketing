@@ -8,7 +8,7 @@ let clockTimer;
 let context, queue = Promise.resolve(), draftFailed = false, draftWrites = 0, saving = false, expanded = false, correction = null, correcting = false;
 const fields = ['dtNo', 'stockpile', 'pileId', 'sourceCode', 'productCode', 'dome', 'destination', 'time', 'note'];
 const values = form => Object.fromEntries(fields.map(k => [k, form.elements[k].value]));
-export async function flushDraft() { await queue; if (draftFailed) throw Error('Draft belum tersimpan. Coba input lagi atau unduh backup sebelum refresh.'); }
+export async function flushDraft() { await queue; if (draftFailed) throw Error('Draft belum tersimpan. Coba input lagi; jangan refresh sebelum draft tersimpan.'); }
 export async function prepareSessionEnd() {
   if (saving || correcting || state.sessionTransition) throw Error('Penyimpanan, koreksi, atau handover sedang berlangsung. Tunggu sampai selesai.');
   state.sessionTransition = true;
@@ -138,7 +138,7 @@ async function save(form, original = null, captured = null) {
   if (data.timeMode === undefined) delete data.timeMode;
   data.timePrecision = timePrecision(data.time);
   delete data.savedAt;
-  if (draft?.editId && !original) throw Error('Draft koreksi versi lama dipertahankan. Unduh backup sebelum membatalkannya; gunakan popup Koreksi.');
+  if (draft?.editId && !original) throw Error('Draft koreksi versi lama dipertahankan. Periksa draft sebelum membatalkannya; gunakan popup Koreksi.');
   data.dtNo = normalizeDT(data.dtNo, original?.dtNo);
   assertRecord(data); approvedMappings(data, original);
   let duplicateConfirmed = false;

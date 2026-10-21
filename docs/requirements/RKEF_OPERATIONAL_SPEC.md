@@ -2,7 +2,7 @@
 
 **Tanggal keputusan:** 21 Oktober 2026.  
 **Status:** kontrak kebutuhan operasional terbaru yang dikonfirmasi owner; bukan pernyataan bahwa aplikasi telah memenuhi kontrak atau lulus uji terima.  
-**Pembaruan 21 Oktober 2026:** Setup v1.1.0 disusul otorisasi lokal Operasional v1.1.1 dan Opsi B pada bagian 7. Git dan deployment tetap owner-only.
+**Pembaruan 21 Oktober 2026:** Setup v1.1.0 disusul otorisasi lokal Operasional v1.1.1 dan Opsi B pada bagian 7. Report v1.1.1 kini memakai seluruh ritase lokal sesi aktif, rekap Pile ID + TOTAL, tanpa filter maupun Backup/Restore JSON pengguna. Git dan deployment tetap owner-only.
 
 Dokumen ini menjadi **acuan utama untuk keputusan operasional terbaru yang sudah dikonfirmasi**, menggantikan ketentuan lama yang bertentangan dalam [PRD v0.9](PRD_RKEF_Ticketing_v0.9.md), [instruksi implementasi](../development/CODEX_ONE_SHOT_PROMPT.md), dan uraian perilaku existing di [README](../../README.md). Ketentuan arsitektur dan keselamatan yang tidak bertentangan tetap berlaku. PRD lama tidak ditulis ulang dalam tugas ini.
 
@@ -12,7 +12,7 @@ Dokumen ini menjadi **acuan utama untuk keputusan operasional terbaru yang sudah
 
 RKEF-Ticketing adalah PWA untuk operator timbangan yang mencatat ritase Dump Truck dalam operasional RKEF. Deliverable utama adalah laporan plain-text dengan delimiter TAB asli yang dapat disalin ke WhatsApp, lalu ditempel ke Microsoft Excel menjadi tabel 11 kolom yang sesuai.
 
-Prioritas produk: integritas data, kesinambungan shift, ketepatan nomor ritase, dan penggunaan sederhana di HP. Output Report harus dapat dipakai sebagai handover lengkap untuk shift berikutnya. Backup JSON terpisah mempertahankan histori lengkap untuk pemulihan; teks WA bukan pengganti backup.
+Prioritas produk: integritas data, kesinambungan shift, ketepatan nomor ritase, dan penggunaan sederhana di HP. Output Report harus dapat dipakai sebagai handover lengkap untuk shift berikutnya. Backup/Restore JSON di UI dihapus berdasarkan keputusan owner task Report v1.1.1. Teks WA bukan backup metadata lengkap; pemulihan setelah kehilangan perangkat tidak tersedia melalui UI.
 
 ## 2. Alur Operasional Inti (Core Operational Workflow)
 
@@ -26,7 +26,7 @@ Prioritas produk: integritas data, kesinambungan shift, ketepatan nomor ritase, 
 8. Operator menekan Copy, menempelkan teks ke grup WhatsApp, lalu mengirimnya sendiri.
 9. Operator shift berikutnya mengimpor laporan tersebut untuk meneruskan siklus.
 
-Keutuhan satu shift merupakan asumsi operasional yang dikonfirmasi owner. Struktur yang valid saja tidak membuktikan laporan benar-benar lengkap. Jangan menggunakan potongan hasil filter sebagai dasar handover tanpa kebijakan yang disahkan; lihat OPEN DECISION OD-04.
+Keutuhan satu shift merupakan asumsi operasional yang dikonfirmasi owner. Struktur yang valid saja tidak membuktikan laporan benar-benar lengkap. Report tidak menyediakan filter/subset; seluruh ritase lokal sesi aktif dipakai. Ini tidak membuktikan shift selesai atau laporan belum dikirim (OD-09); handover shift kosong tetap sisa OD-04.
 
 ## 3. Kontrak Data Laporan WhatsApp (WhatsApp Report Data Contract)
 
@@ -74,7 +74,7 @@ Record baru menyimpan `time`, `sourceTime`, `editedTime`, `timePrecision` (`minu
 
 Draft membawa `timeMode`; reload AUTO membaca jam terkini, reload MANUAL mempertahankan input. Draft lama tanpa mode: nilai sama dengan `sourceTime` dianggap AUTO; nilai berbeda atau draft koreksi dianggap MANUAL. Format lama tidak mencatat tindakan mengetik ulang nilai yang sama, sehingga tindakan itu tidak dapat dipulihkan secara pasti. Popup Koreksi selalu menampilkan waktu historis tanpa live clock dan tidak mengganti draft Ritase Baru.
 
-WA tetap tepat 11 kolom TAB; kolom 10 `HH.mm` dengan **membuang detik, tanpa pembulatan**. `14.25.59` menjadi `14.25`; `23.59.59` menjadi `23.59`, tanpa pergantian tanggal. Serialisasi tidak mengubah database. Parser handover tetap menerima notasi menit OD-01 di atas; teks WA tidak mempertahankan detik/mode/presisi/UUID, sehingga backup JSON tetap diperlukan. Nama database, schema v1 dan format backup v1 tetap; metadata tambahan kompatibel tanpa migrasi destruktif.
+WA tetap tepat 11 kolom TAB; kolom 10 `HH.mm` dengan **membuang detik, tanpa pembulatan**. `14.25.59` menjadi `14.25`; `23.59.59` menjadi `23.59`, tanpa pergantian tanggal. Serialisasi tidak mengubah database. Parser handover tetap menerima notasi menit OD-01 di atas; teks WA tidak mempertahankan detik/mode/presisi/UUID, sehingga teks WA tidak menyediakan pemulihan metadata lengkap. Backup/Restore JSON tidak lagi tersedia pada UI; API internal tetap kompatibel. Nama database, schema v1 dan format backup v1 tetap; metadata tambahan kompatibel tanpa migrasi destruktif.
 
 ## 4. Serial Tanggal Excel (Excel Date Serial)
 
@@ -145,7 +145,7 @@ Aktivasi baru, penyesuaian status mapping yang sudah ada bila diperlukan, lastHa
 2. Nomor disimpan bersama record saat simpan sukses. Record, counter/session, audit, dan penghapusan draft terkait berjalan dalam satu transaksi IndexedDB. Gagal/abort tidak menghabiskan nomor; retry UUID/draft yang sama tidak membuat transaksi baru. Lock read/write store yang sama menserialisasi tab pada origin/perangkat sama, bukan koordinasi antar-HP.
 3. Transaksi lokal **sesi aktif** diurutkan berdasarkan waktu operasional; koreksi waktu atau penyisipan lebih awal dapat mengubah nomor seluruh transaksi lokal terkait. Contoh `084/15.20`, `085/15.25`, `086/15.30`; koreksi transaksi ketiga ke `15.22` menghasilkan UUID ketiga bernomor `085`, UUID kedua `086`.
 4. Scope ditentukan oleh tanggal operasi, timbangan, shift, origin lokal, dan `numberingSession` yang menunjuk receipt handover aktif. `startNumber` disimpan pada save pertama dan tidak bergeser. Histori impor, timbangan/tanggal berbeda, dan sesi sebelumnya tidak diubah. Koreksi di luar scope aktif diblokir. Data lama tanpa nomor atau tanpa identitas sesi yang bertumpang tindih diblokir untuk OD-05/06; tidak dinomori secara retroaktif.
-5. Waktu diurutkan sampai detik bila tersedia (lihat bagian 3). Waktu sama memakai tie-breaker `createdAt`, lalu UUID, stabil setelah reload. Sorting/filter/export tidak menghitung nomor ulang. Suffix exporter memakai `ritaseNumber` tersimpan; histori tanpa nomor tetap format lama dan tidak memenuhi kontrak handover baru.
+5. Waktu diurutkan sampai detik bila tersedia (lihat bagian 3). Waktu sama memakai tie-breaker `createdAt`, lalu UUID, stabil setelah reload. Sorting/filter/export tidak menghitung nomor ulang. Suffix exporter memakai `ritaseNumber` tersimpan. Report aktif memblokir ritase tanpa nomor; serializer internal tetap mendukung histori legacy untuk kompatibilitas, bukan alur handover baru.
 6. Cegah nomor bisnis ganda untuk tanggal/timbangan sama, termasuk terhadap histori beku dan tombstone. Urutan aktif harus utuh; tab stale ditolak lewat revisi. Peer yang nomornya berubah mendapat kenaikan revisi dan audit `renumber` berisi before/after; transaksi yang dikoreksi memakai audit `correct` berisi perubahan nomor dan field. Snapshot asli dipertahankan. Abort membatalkan semua perubahan.
 7. **NS lewat tengah malam:** tanggal operasi tetap sesi. Untuk AUTO baru, tanggal kalender perangkat ditangkap bersamaan dengan waktu saat Simpan dan diteruskan ke `actualDate`; tanggal pembukaan draft tidak dipakai sebagai tanggal transaksi AUTO. Record lama mempertahankan provenance `clockDate`/`actualDate` existing. NS dengan tanggal perangkat pada tanggal operasi atau hari kalender berikutnya diurutkan berdasarkan tanggal aktual lalu waktu. Tidak ada tebakan batas shift atau zona waktu resmi. Input MANUAL NS tanpa tanggal aktual tepercaya, koreksi waktu NS, metadata tanggal hilang atau di luar dua tanggal tersebut **BLOCKED (OD-10)**. Data device clock adalah provenance perangkat, bukan bukti jam perangkat benar; uji dan verifikasi jam HP tetap gate operasional.
 8. Aplikasi **tidak mengetahui laporan sudah dikirim di WhatsApp**. Scope aktif bukan bukti laporan belum dikirim. Perubahan nomor dapat membuat laporan lama berbeda; periksa dan koordinasikan laporan yang pernah dikirim. Penguncian/finalisasi belum tersedia (OD-09); jangan mengklaim laporan sudah aman difinalisasi. Histori di luar sesi aktif diblokir dan tab dengan sesi/revisi lama ditolak.
@@ -177,9 +177,18 @@ Periksa integritas seluruh laporan sebelum menentukan sesi. Jangan melanjutkan d
 |---|---|
 | **Setup** | Import WA sebelumnya, validasi handover, deteksi tanggal operasi/DS atau NS/BDM atau ONI/nomor berikutnya, persiapan master operasional, pemrosesan otomatis setelah paste dan status singkat |
 | **Operasional** | Input Dump Truck, pemilihan material dan lokasi, waktu otomatis atau edit, penomoran otomatis, penyimpanan lokal, koreksi dengan audit trail, pencegahan duplikasi tidak disengaja |
-| **Report** | Tampilan ritase sesi, filter dan pemeriksaan, preview, teks 11 kolom, Copy to Clipboard, larangan mencampur timbangan, serta pemeliharaan nomor dan urutan |
+| **Report** | Informasi sesi aktif, rekap Pile ID + TOTAL, preview terbatas, Salin/Unduh WA lengkap 11 kolom; tanpa filter dan Backup/Restore JSON pengguna |
 
-Tetap tepat tiga view utama. Report merupakan deliverable utama produk. Filter tidak boleh mengubah identitas/nomor transaksi. Urutan keluaran final dan perlindungan agar hasil filter tidak disalahgunakan sebagai handover lengkap menunggu OD-04.
+Tetap tepat tiga view utama. Keputusan owner task Report v1.1.1 menggantikan desain filter lama:
+
+- Susunan: **Informasi Sesi → Rekap Ritase per Pile ID + TOTAL → Laporan WhatsApp**. Tanggal operasi, shift, timbangan, checker dan total berasal dari sesi/data tersimpan. Checker hanya identitas petugas, tidak memfilter/mengelompokkan transaksi.
+- Sumber otomatis: `origin=local`, belum dihapus, tanggal operasi/shift/timbangan sesi aktif, `numberingSession=handoverId`, identitas aktivasi sama jika tersedia. Sesi/tanggal/timbangan/shift lain, histori impor dan reset tidak masuk. Identitas yang tidak cukup membedakan aktivasi memblokir export tanpa menebak. Tidak ada delapan filter atau tombol Gunakan Sesi Aktif/Kosongkan Filter.
+- Satu record dihitung satu ritase, bukan DT unik. Rekap per `pileId` tersimpan dihitung ulang saat save/koreksi/renumbering/reload, tanpa counter terpisah. Urut jumlah terbanyak, lalu nama Pile ID deterministik; baris **TOTAL** selalu paling bawah.
+- TOTAL = jumlah transaksi lokal aktif sesi = penjumlahan Pile ID = jumlah baris WA. Output urut nomor tersimpan Opsi B, tepat 11 kolom TAB/kolom keenam kosong/suffix aktual/HH.mm tanpa pembulatan. Export tidak menomori ulang. Nomor hilang/duplikat/gap, counter tidak konsisten, collision histori, kronologi atau identitas/data invalid memblokir Salin/Unduh dengan alasan.
+- Preview lengkap dapat dibuka, tinggi dibatasi dengan scroll internal; clipboard/TXT selalu seluruh transaksi, tanpa batas 500 baris. Status Salin berhasil/gagal ditampilkan; fallback copy browser atau seleksi teks lengkap jika clipboard ditolak. Tidak ada kirim otomatis WA/backend. Snapshot sesi+record dibaca atomik sebelum aksi; sesi berubah meminta operator memeriksa identitas terbaru sebelum aksi berikutnya.
+- Tanpa sesi aktif: “Belum ada sesi aktif. Lakukan handover di halaman Setup.”, tanpa sesi lama sebagai aktif. Sesi aktif kosong: “Belum ada ritase pada sesi ini.”, TOTAL 0, Salin/Unduh nonaktif, tanpa baris palsu.
+- Card Cadangan Perangkat dan seluruh alur Backup/Restore JSON pengguna dihapus, termasuk recovery pada error penyimpanan; tidak dipindahkan ke view lain. API internal tetap untuk kompatibilitas/validasi/tes; database/schema v1 tidak berubah dan penghapusan UI tidak menghapus data. Pemulihan seluruh metadata setelah kehilangan perangkat tidak tersedia melalui antarmuka. TXT/WA tidak membawa UUID, audit, draft, master, counter dan cache.
+- Penghapusan filter menyelesaikan bagian urutan/subset OD-04. Handover shift kosong tetap terbuka; penguncian/finalisasi dan rekonsiliasi laporan pernah dikirim tetap OD-09. Semua record tersedia bukan bukti seluruh ritase lapangan sudah dicatat atau shift selesai.
 
 ### Operasional v1.1.1
 
@@ -201,7 +210,7 @@ Koreksi memakai dialog terpisah dengan scroll internal, Simpan Koreksi dan Batal
 - Pertahankan UUID, snapshot transaksi, sumber waktu dan waktu hasil edit, serta audit koreksi. Perubahan master tidak diam-diam mengubah histori.
 - Waktu AUTO berjalan mengikuti perangkat dan ditangkap saat Simpan; input manual memiliki prioritas dan kosong/spasi mengembalikan AUTO. Tanggal operasi mengikuti sesi, bukan perubahan tanggal kalender perangkat.
 - Simpan data sumber dan temuan validasi; jangan mengoreksi atau membuang baris bermasalah secara diam-diam. Impor ulang harus idempoten.
-- Backup JSON terpisah diperlukan untuk pemulihan UUID dan histori lengkap. Teks WA tidak membawa seluruh metadata; file GitHub Pages bukan database atau backup ritase.
+- Tidak ada fasilitas Backup/Restore JSON pengguna setelah redesign Report. Teks WA tidak membawa seluruh metadata; file GitHub Pages bukan database atau backup ritase. Pemulihan metadata lengkap setelah kehilangan perangkat/browser tidak tersedia melalui UI.
 - Sublot (SL) tetap di luar v1. Kebijakan baru untuk penghapusan, gap, dan migrasi data tidak ditetapkan oleh dokumen ini.
 - Uji HP/Android/Chrome, clipboard/Excel aktual, serta Google anonim tetap gate yang harus diverifikasi langsung sebelum klaim penerimaan operasional.
 
@@ -219,8 +228,8 @@ Seluruh baris berikut adalah **kontrak kebutuhan**, bukan hasil tes. Sebagian ko
 | AC-06 | Koreksi waktu transaksi lokal sesi aktif | Nomor mengikuti posisi kronologis Opsi B; UUID tetap, semua perubahan nomor diaudit dan atomik; scope ambigu diblokir |
 | AC-07 | Copy Report satu sesi | Plain-text, TAB asli, 11 kolom per baris, kolom keenam kosong, tanpa header/Markdown/backslash; kolom pertama menyertakan suffix |
 | AC-08 | Tempel hasil Copy melalui WA ke Excel | Setiap baris dapat dipisahkan menjadi 11 kolom memakai TAB; verifikasi di lingkungan aktual diperlukan |
-| AC-09 | Filter mengizinkan transaksi BDM dan ONI terlihat bersamaan | Tidak menghasilkan satu laporan WA gabungan BDM/ONI |
-| AC-10 | Sorting/filtering kemudian ekspor | Sorting/filter/export tidak menomori ulang; nomor tersimpan terbaru Opsi B dipakai; laporan lengkap/filter masih menunggu OD-04 |
+| AC-09 | Ada transaksi BDM dan ONI di perangkat | Report otomatis hanya sesi aktif satu timbangan; tidak ada filter campuran |
+| AC-10 | Rekap dan ekspor sesi aktif | Seluruh ritase lokal aktif sesi masuk; TOTAL = rekap Pile ID = baris WA; urut nomor Opsi B tersimpan, tanpa renumbering saat export; data invalid memblokir |
 | AC-11 | Ritase melewati `999` | Nomor berikutnya `1000`, tidak terpotong atau kembali ke `001` |
 | AC-12 | Impor ulang laporan identik | Tidak menggandakan transaksi atau memajukan counter secara tidak sah; setelah Mulai Sesi Baru, laporan 83 BDM yang sama mengaktifkan NS 20/10/2026 dengan `46315-084`, bertahan setelah reload |
 | AC-13 | Nilai waktu sumber `7.2` | Normalisasi menjadi `07.20` (07:20), simpan sumber `7.2` untuk audit |
@@ -239,7 +248,7 @@ Belum ada klaim penerimaan seluruh kontrak baru, uji tempel Excel, uji Android, 
 6. Handover berasal dari satu laporan lengkap shift sebelumnya. Awal `001` menandakan DS → NS tanggal sama, lanjut nomor; awal selain `001` menandakan NS → DS tanggal berikutnya, reset `001`. Jam transaksi bukan dasar deteksi.
 7. Nomor otomatis disimpan saat simpan berhasil; Opsi B menggantikan permanensi nomor setelah koreksi: kronologi sesi aktif dapat menomori ulang, UUID tetap, audit atomik. Filter/sort/export tidak menomori ulang. Cegah nomor ganda dan gap; lihat bagian 7.
 8. Setelah paste lengkap, validasi penuh mendahului simpan atomik dan aktivasi sesi otomatis tanpa konfirmasi. Status singkat menggantikan preview baris/master. Data invalid atau konflik tidak mengubah sesi, baris sumber tidak dibuang atau diperbaiki dengan tebakan. Impor ulang idempoten; cegah proses bertumpuk dan kemunduran sesi.
-9. Tetap tiga view Setup, Operasional, Report; root vanilla JS PWA, IndexedDB per HP, Destination-only Sheets/Apps Script, tanpa sinkronisasi ritase otomatis atau login operator. Backup JSON terpisah tetap diperlukan.
+9. Tetap tiga view Setup, Operasional, Report; root vanilla JS PWA, IndexedDB per HP, Destination-only Sheets/Apps Script, tanpa sinkronisasi ritase otomatis atau login operator. Backup/Restore JSON pengguna dihapus; API internal tetap kompatibel, pemulihan metadata lengkap tidak tersedia melalui UI.
 10. Master berasal dari handover disahkan dan input lokal eksplisit; jam default perangkat tetap editable dengan waktu sumber/hasil edit terpelihara; audit koreksi dipertahankan; SL di luar v1.
 
 11. OD-01 selesai: format waktu mengikuti bagian 3; sumber asli tetap tersimpan. Checker sesi baru diisi manual; checker kosong boleh mengaktifkan handover, tetapi tidak boleh menyimpan ritase baru. Keputusan lain pada bagian 13 tetap terbuka.
@@ -251,7 +260,7 @@ Belum ada klaim penerimaan seluruh kontrak baru, uji tempel Excel, uji Android, 
 | OD-01 (SELESAI) | Owner mengonfirmasi aturan waktu pada bagian 3 untuk perbaikan Setup v1.1.0 | `7.2` = 07:20; normalisasi `HH.mm`, simpan sumber, tolak nilai invalid tanpa tebakan |
 | OD-02 | Pembatalan/penghapusan transaksi bernomor: status, gap, kemungkinan reuse, serta penanganan nomor terakhir | Penghapusan individual bernomor diblokir; reset penuh sesi bagian 6 sudah disahkan. Opsi B bagian 7 hanya untuk kronologi sesi aktif, bukan izin reuse/penghapusan |
 | OD-03 | Laporan historis bergap, nomor ganda/tidak urut, baris rusak; definisi awal/akhir jika urutan sumber salah; prosedur koreksi | Deteksi dan laporkan masalah; jangan menyortir ulang, mengisi gap, membuang subset, atau mengaktifkan sesi diam-diam. Penolakan total campuran timbangan tetap final |
-| OD-04 | Urutan output final dan cara memastikan laporan handover lengkap saat filter aktif; shift tanpa transaksi | Potongan laporan dapat salah dideteksi sebagai NS; laporan kosong tidak menyediakan suffix awal. Jangan membuat aturan deteksi pengganti |
+| OD-04 (SEBAGIAN SELESAI) | Report memakai seluruh ritase lokal sesi aktif tanpa filter, urut nomor tersimpan. Handover shift tanpa transaksi masih terbuka | TOTAL 0 tanpa baris/Salin/Unduh; laporan kosong tidak menyediakan suffix awal. Jangan membuat aturan deteksi pengganti |
 | OD-05 | Dukungan/migrasi 10 kolom lama dan 11 kolom tanpa suffix; pemberian nomor bagi histori yang belum memilikinya | Format existing tidak memenuhi kontrak baru; jangan menghasilkan nomor historis dari sorting atau menebak shift |
 | OD-06 | Impor dengan identitas bisnis sama tetapi isi berbeda; konflik dengan sesi aktif/draft, impor lama yang diulang setelah ada transaksi baru | Penggunaan ulang laporan tanpa konflik sudah disahkan pada bagian 6. Konflik isi, draft aktif, transaksi lokal tujuan, atau persiapan mundur tetap diblokir; prioritas/merge/overwrite dan rekonsiliasi konflik belum ditentukan |
 | OD-07 | Penggunaan lebih dari satu HP untuk timbangan yang sama secara bersamaan dan rekonsiliasi backup antarperangkat | IndexedDB lokal tidak dapat menjamin keunikan global tanpa koordinasi; jangan mengklaim counter global tersinkronisasi |
@@ -264,7 +273,7 @@ Jam batas shift, zona waktu operasional resmi, status T.Ksng/Gtg.Ksng, dan kebij
 
 ## 14. Konflik yang Diketahui dengan PRD dan Implementasi Existing (Known Conflicts with Existing PRD)
 
-Tabel berikut adalah catatan historis sebelum implementasi Setup v1.1.0, bukan uraian seluruh perilaku aplikasi saat ini. Parser bernomor, deteksi sesi, penolakan campuran dan automatic handover, aturan waktu OD-01, serta checker manual telah diperbaiki dan diuji lokal; lihat [hasil pengujian](../testing/LOCAL_TEST_RESULTS.md). Tabel historis berikut dipertahankan. **Status v1.1.1 menggantikan baris Operasional/Exporter:** nomor tersimpan Opsi B kini diimplementasikan lokal; suffix memakai nomor aktual dan sorting nomor tersimpan. Report belum didesain ulang: data lama tanpa nomor, filter/subset lengkap, dan laporan campuran tetap kesenjangan OD-04/05. Tidak ada klaim kontrak WA final lengkap.
+Tabel berikut adalah catatan historis sebelum implementasi Setup v1.1.0, bukan uraian seluruh perilaku aplikasi saat ini. Parser bernomor, deteksi sesi, penolakan campuran dan automatic handover, aturan waktu OD-01, serta checker manual telah diperbaiki dan diuji lokal; lihat [hasil pengujian](../testing/LOCAL_TEST_RESULTS.md). Tabel historis berikut dipertahankan. **Status v1.1.1 menggantikan baris Operasional/Exporter:** nomor tersimpan Opsi B kini diimplementasikan lokal; suffix memakai nomor aktual dan sorting nomor tersimpan. Task Report v1.1.1 menggantikan desain historis: tanpa filter, hanya lokal sesi aktif/aktivasi, rekap Pile ID + TOTAL dan WA lengkap; data tanpa nomor/identitas diblokir tanpa migrasi. Backup/Restore pengguna dihapus. OD-04 tersisa shift kosong; OD-05/09/10 tetap relevan. Tabel di bawah adalah catatan perilaku lama, bukan instruksi UI saat ini.
 
 | Area / sumber | Perilaku atau ketentuan existing | Kontrak terbaru / kesenjangan |
 |---|---|---|

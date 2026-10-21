@@ -78,7 +78,7 @@
   assert(!$('#master-form')&&!$('#session-form'),'removed editor references');
   assert(!$('#view-setup').textContent.includes('Sebelum mulai')&&!$('#view-setup').textContent.includes('Pilihan lokal'),'old cards remain');
   equal($('#app-version').textContent,'RKEF Ticketing — v1.1.1','version');
-  const {applySessionFilter}=await import('./js/report-ui.js');applySessionFilter();
+  const {renderReport}=await import('./js/report-ui.js');renderReport();
   location.hash='operasional';await until(()=>!$('#view-operasional').hidden&&state.draft,'operation view');
   set($('#entry-form'),data); (await import('./js/operational-ui.js')).renderOperational();input($('#entry-form').elements.time);await flushDraft();
   submit('#entry-form');await until(()=>state.records.some(r=>r.dtNo==='TEST_DT'&&r.origin==='local'),'save UI');
@@ -98,6 +98,7 @@
   Database.prototype.saveRecord=modalSave;submit('#correction-form');
   await until(()=>state.records.find(r=>r.id===saved.id)?.revision===2,'correction save');
   equal(state.records.find(r=>r.id===saved.id).sourceSnapshot.time,'06.59','UI source preserved');
+  equal($('#report-output').value.split('\t')[9],'07.05','Report reflects persisted correction');
   equal(state.draft,preservedDraft,'correction changed draft');
   equal($('#entry-form').elements.dtNo.value,'820','entry form changed');
   assert(!$('#correction-dialog').open,'correction modal remains open');
@@ -436,7 +437,7 @@
   const registration = await navigator.serviceWorker.getRegistration();
   equal(registration.scope, location.origin + '/RKEF-Ticketing/', 'unchanged Pages worker scope');
   await until(()=>!!navigator.serviceWorker.controller,'service worker control');
-  const cache=await caches.open('rkef-shell-v1.1.1-manual-digits');const entries=await cache.keys();
+  const cache=await caches.open('rkef-shell-v1.1.1-report-piles');const entries=await cache.keys();
   assert(entries.length>20,'offline shell incomplete');assert(entries.every(r=>r.url.startsWith(location.origin+'/RKEF-Ticketing/')),'external responses cached');
   results.push('PASS existing session/local masters, save, correction, stored-number Report TSV, manual draft persistence and 360px layout');
   results.push('PASS scoped PWA shell cached under /RKEF-Ticketing/; no Sheets responses cached');

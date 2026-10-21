@@ -118,10 +118,8 @@
   assert(document.querySelector('#entry-fields').disabled, 'Reset left input enabled');
   equal(document.querySelector('#history-count').textContent, '0', 'History retained deleted records');
   assert(!document.querySelector('#entry-context').textContent.includes('46315-087'), 'Stale next number');
-  const report = document.querySelector('#filter-form');
-  for (const el of report.elements) if (el.name) el.value = '';
   (await import('./js/report-ui.js')).renderReport();
-  equal(document.querySelector('#report-count').textContent, '83', 'Report includes deleted records');
+  equal(document.querySelector('#report-count').textContent, '0', 'Inactive Report includes historical records');
   try { await db.saveDraft(oldDraft); throw Error('Stale autosave accepted'); }
   catch (error) { assert(error.message.includes('Sesi draft'), error.message); }
   // Inject failure after reuse writes are queued, inside the real IndexedDB transaction.

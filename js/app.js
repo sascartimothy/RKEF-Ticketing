@@ -7,7 +7,7 @@ import { initSetup, renderSetup } from './setup-ui.js';
 import { initDestinations, renderDestinations, syncDestinations } from './destinations-ui.js';
 import { initImport } from './import-ui.js';
 import { initOperational, renderOperational, ensureDraft, fillDraft, flushDraft } from './operational-ui.js';
-import { initReport, renderReport, applySessionFilter } from './report-ui.js';
+import { initReport, renderReport } from './report-ui.js';
 let db, channel, refreshQueue = Promise.resolve();
 function fail(error) { console.error(error); toast(error?.message || 'Operasi gagal. Data belum dikonfirmasi tersimpan.', true); }
 function fatal(error) {
@@ -16,10 +16,6 @@ function fatal(error) {
   $('#storage-error').textContent = 'Penyimpanan belum siap: ' + error.message + ' Input dinonaktifkan untuk mencegah sukses palsu. Muat ulang setelah masalah diperbaiki. Data yang ada tidak dihapus.';
   $('#storage-error').hidden = false;
   for (const el of $$('main button, main input, main select, main textarea')) el.disabled = true;
-  // A raw export remains available if the database opened but validation failed.
-  if (db) { $('#backup').disabled = false; $('#backup').onclick = async () => {
-    try { const { download } = await import('./ui-components.js'); download('RKEF-recovery.json', JSON.stringify(await db.backup(), null, 2), 'application/json'); } catch (e) { fail(e); }
-  }; }
 }
 function network() {
   $('#network').textContent = navigator.onLine ? 'Online' : 'Offline';
@@ -50,8 +46,8 @@ async function storageInfo() {
   try {
     const persisted = await navigator.storage?.persisted?.();
     const estimate = await navigator.storage?.estimate?.();
-    $('#storage-info').textContent = `${persisted ? 'Penyimpanan persisten diizinkan.' : 'Penyimpanan dapat dibersihkan browser. Backup tetap diperlukan.'}${estimate?.usage ? ' Terpakai ' + (estimate.usage / 1048576).toFixed(1) + ' MB.' : ''}`;
-  } catch { $('#storage-info').textContent = 'Informasi kapasitas tidak tersedia. Tetap lakukan backup.'; }
+    $('#storage-info').textContent = `${persisted ? 'Penyimpanan persisten diizinkan.' : 'Penyimpanan dapat dibersihkan browser. Pemulihan metadata lengkap tidak tersedia melalui UI.'}${estimate?.usage ? ' Terpakai ' + (estimate.usage / 1048576).toFixed(1) + ' MB.' : ''}`;
+  } catch { $('#storage-info').textContent = 'Informasi kapasitas tidak tersedia. Data tetap lokal di perangkat.'; }
 }
 async function pwa() {
   if (!('serviceWorker' in navigator)) { $('#pwa-state').textContent = 'Service worker tidak tersedia di browser ini.'; return; }
@@ -79,13 +75,13 @@ async function boot() {
       });
     }
     const bridge = new DestinationBridge(window.RKEF_CONFIG?.appsScriptUrl);
-    const ctx = { db, bridge, changed, fail, flushDraft, ensureDraft, fillDraft, applySessionFilter };
+    const ctx = { db, bridge, changed, fail, flushDraft, ensureDraft, fillDraft, renderReport };
     initSetup(ctx); initDestinations(ctx); initOperational(ctx); initImport(ctx); initReport(ctx);
     state.ready = true;
     await load({ restoreDraft: true, fillSession: true });
-    fillDraft(); if (state.view === 'operasional') ensureDraft(); applySessionFilter();
+    fillDraft(); if (state.view === 'operasional') ensureDraft(); renderReport();
     $('#main').inert = false; $('#main').removeAttribute('aria-busy');
-    $('#persist-storage').onclick = async () => { try { const ok = await navigator.storage?.persist?.(); toast(ok ? 'Penyimpanan persisten diizinkan.' : 'Browser belum memberikan izin persisten. Tetap unduh backup.'); await storageInfo(); } catch (e) { fail(e); } };
+    $('#persist-storage').onclick = async () => { try { const ok = await navigator.storage?.persist?.(); toast(ok ? 'Penyimpanan persisten diizinkan.' : 'Browser belum memberikan izin persisten. Data tetap lokal di perangkat.'); await storageInfo(); } catch (e) { fail(e); } };
     if ('BroadcastChannel' in window) {
       channel = new BroadcastChannel('rkef-ticketing');
       channel.onmessage = () => { refreshQueue = refreshQueue.catch(() => {}).then(() => load()).catch(fatal); };
