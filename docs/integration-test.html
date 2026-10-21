@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RKEF Ticketing — Uji Integrasi Destination</title>
+<style>
+:root{font-family:system-ui,-apple-system,Arial,sans-serif;color-scheme:light}body{max-width:780px;margin:20px auto;padding:0 16px;line-height:1.5;background:#f7f9fc;color:#12213a}
+section{background:white;border:1px solid #dce4ee;border-radius:14px;padding:16px;margin:12px 0}h1{font-size:1.45rem}h2{font-size:1.1rem}label{display:block;margin-bottom:6px;font-weight:600}input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #aab9c9;border-radius:8px}button{padding:10px 14px;background:#174d82;color:white;border:0;border-radius:9px;margin:8px 6px 8px 0;cursor:pointer}button:disabled{background:#aaa}pre{white-space:pre-wrap;word-break:break-word;background:#eff4fa;padding:12px;border-radius:9px;min-height:4em}small{color:#44576b}.bad{color:#b42318}.ok{color:#146c43}
+</style>
+</head>
+<body>
+<h1>RKEF Ticketing — Uji Apps Script tanpa login</h1>
+<p>Halaman khusus <strong>integration gate</strong>, bukan aplikasi operasional. Jalankan di Chrome HP / mode incognito dari origin GitHub Pages. Jangan memasukkan data produksi palsu.</p>
+<section>
+<label for="endpoint">Apps Script Web App URL (/exec)</label>
+<input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/DEPLOYMENT_ID/exec" autocomplete="off" />
+<button id="health">1. Tes akses anonim</button><button id="list">2. Baca Destination</button>
+<small>Tes GET memakai JSONP, bukan fetch JSON lintas-origin yang belum diverifikasi mendukung CORS.</small>
+</section>
+<section>
+<h2>3. Tes tambah Destination</h2>
+<p>Menambah baris sungguhan pada MASTER_DESTINATION. Gunakan satu nama uji yang unik; setelah selesai, nonaktifkan atau hapus baris uji lewat Google Sheets.</p>
+<label for="newName">Nama uji</label><input id="newName" maxlength="80" />
+<button id="add">Kirim tambah Destination</button>
+<small>Form POST ke iframe tersembunyi; hasilnya dicek ulang melalui GET (request_id), bukan sekadar menganggap form terkirim.</small>
+</section>
+<section><h2>Hasil tes</h2><pre id="output">Belum ada pengujian.</pre></section>
+<script src="./config.js"></script>
+<script>
+'use strict';
+const endpoint = document.getElementById('endpoint');
+endpoint.value = (window.RKEF_CONFIG && window.RKEF_CONFIG.appsScriptUrl) || ''; 
+const output = document.getElementById('output');
+const newName = document.getElementById('newName');
+newName.value = 'TEST-RKEF-' + Date.now().toString(36).toUpperCase();
+const print = line => {output.textContent = new Date().toLocaleTimeString('id-ID') + '  ' + line + '\n' + output.textContent;};
+function validURL() {
+  const url = endpoint.value.trim();
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(url)) throw Error('Isi URL deploy Apps Script yang berakhir /exec');
+  return url.split('?')[0];
+}
+let counter = 0;
+function jsonp(action, timeout=12000) {
+  const url = validURL();
+  const cb = '_rkef_' + String(Date.now()) + '_' + (++counter);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    let done = false;
+    const cleanup = () => {delete window[cb]; script.remove();clearTimeout(timer);};
+    const fail = e => {if(!done){done=true;cleanup();reject(e);}};
+    const timer = setTimeout(() => fail(Error('Timeout. Cek deployment Anyone/anonymous dan URL.')),timeout);
+    window[cb] = data => {if(!done){done=true;cleanup();resolve(data);}};
+    script.onerror = () => fail(Error('Gagal memuat script JSONP dari Apps Script.'));
+    script.src = url + '?action=' + encodeURIComponent(action) + '&callback=' + cb + '&_=' + Date.now();
+    document.head.appendChild(script);
+  });
+}
+async function view(action) { try {const r=await jsonp(action);print(JSON.stringify(r,null,2));}catch(e){print('ERROR: '+e.message);} }
+document.getElementById('health').onclick=()=>view('health');
+document.getElementById('list').onclick=()=>view('list');
+const pause = ms=>new Promise(r=>setTimeout(r,ms));
+function submitForm(name,requestId){
+  const url = validURL();
+  const iframe=document.createElement('iframe');
+  iframe.name='rkef_post_'+Date.now();iframe.style.display='none';
+  const form=document.createElement('form');form.method='POST';form.action=url;form.target=iframe.name;form.style.display='none';
+  [['action','addDestination'],['name',name],['request_id',requestId]].forEach(([k,v])=>{
+    const input=document.createElement('input');input.name=k;input.value=v;form.appendChild(input);
+  });
+  document.body.append(iframe,form);form.submit();
+  setTimeout(()=>{form.remove();iframe.remove();},45000);
+}
+let busy=false;
+document.getElementById('add').onclick=async()=>{
+  if(busy)return;
+  const name=newName.value.trim();
+  if(name.length<2||name.length>80)return print('Nama harus 2–80 karakter.');
+  const requestId='test_'+(crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):(Date.now()+'_'+Math.random().toString(36).slice(2)));
+  try{
+    busy=true; const before=await jsonp('list');
+    if(!before.ok)throw Error('Preflight read gagal: '+JSON.stringify(before));
+    if(before.destinations.some(x=>x.destination_name.toUpperCase()===name.toUpperCase()))throw Error('Nama sudah ada di Google Sheet. Ganti nama uji.');
+    print('Mengirim request_id='+requestId+'; menunggu konfirmasi READ-BACK...');
+    submitForm(name,requestId);
+    let found=null;
+    for(let i=1;i<=7;i++) {
+      await pause(2500);
+      const data=await jsonp('list');
+      if(!data.ok)throw Error('Read-back gagal: '+JSON.stringify(data));
+      found=data.destinations.find(x=>x.request_id===requestId && x.destination_name===name);
+      if(found)break;
+    }
+    print(found ? 'PASS: Destination muncul di Google Sheets dengan request_id yang sama. '+JSON.stringify(found) :
+      'BELUM TERVERIFIKASI: tidak ditemukan dalam 17,5 detik. Cek Apps Script Executions / Google Sheet. Jangan klaim tersimpan.');
+  }catch(e){print('ERROR: '+e.message);}finally{busy=false;}
+};
+</script>
+</body>
+</html>

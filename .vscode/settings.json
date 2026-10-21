@@ -1,0 +1,9 @@
+{
+  "files.eol": "\n",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.autoSave": "off",
+  "files.trimTrailingWhitespace": true,
+  "editor.formatOnSave": false,
+  "liveServer.settings.root": "/docs"
+}

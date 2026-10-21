@@ -1,0 +1,10 @@
+{
+  "name": "rkef-ticketing-prebuild",
+  "private": true,
+  "version": "0.9.1",
+  "description": "Pre-build anonymous Google Sheets Destination integration gate",
+  "scripts": {
+    "test": "node tests/test_apps_script.cjs && node scripts/check-workspace.cjs",
+    "dev": "node scripts/serve-docs.cjs"
+  }
+}

@@ -1,0 +1,23 @@
+# Editor/OS noise
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+.vscode/*.log
+
+# Credentials (never commit)
+.env
+.env.*
+*.key
+*.pem
+*service-account*.json
+credentials.json
+
+# Local backups and operator data
+backups/
+exports/
+private-data/
+*.db
+*.sqlite
+
+RKEF_Ticketing_VSCode_Workspace_v1.0.zip
