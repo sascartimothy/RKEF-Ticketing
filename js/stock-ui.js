@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { $, escape, busy, confirmAction, toast } from './ui-components.js';
 import { stockPairs, stockTarget, resolveProduct, pairKey } from './master-data.js';
+import { stockIdentityErrors } from './validation.js';
 let context, changedDraft, flush, editing = null, working = false;
 const entry = () => $('#entry-form');
 const label = m => `${m.stockpile} / ${m.pileId}`;
@@ -15,9 +16,9 @@ function apply(m) {
   for (const k of ['stockpile','pileId']) form.elements[k].value = m?.[k] || '';
   form.elements.sourceCode.value = '';
   for (const k of ['dome','destination']) form.elements[k].value = target?.[k] || '';
-  form.elements.productCode.value = product?.productCode || '';
-  if (m && !target) toast('Mapping Dome / Destination belum lengkap atau ambigu. Gunakan Edit Daftar untuk menetapkan pasangan.',true);
-  else if (m && !product) toast('Product Code belum dikenali secara unik. Pasangan tersimpan; ritase diblokir sampai mapping Product valid tersedia.',true);
+  form.elements.productCode.value = '';
+  if (m && !target) toast('Mapping Product Code / Destination belum lengkap atau ambigu. Gunakan Edit Daftar untuk menetapkan pasangan.',true);
+  else if (m && !product) toast('Pasangan Product Code / Destination belum tersedia. Tambahkan melalui Edit mapping.',true);
   return changedDraft();
 }
 function actions(html) { $('#stock-actions').innerHTML = html; }
@@ -36,13 +37,37 @@ function showForm(m = null) {
   $('#stock-error').hidden = true; $('#stock-title').textContent = m ? 'Edit Stockpile / Pile ID' : 'Tambah Stockpile / Pile ID';
   const destinations = (state.cache?.values || []).filter(d => d.is_active !== false);
   const domes = [...new Set(state.masters.filter(m => m.active !== false).map(m => m.dome).filter(Boolean))].sort();
-  $('#stock-body').innerHTML = `<form id="stock-form" novalidate><fieldset><label>Stockpile<input name="stockpile" maxlength="100" list="stock-options" required value="${escape(m?.stockpile || '')}"></label><label>Pile ID<input name="pileId" maxlength="100" required value="${escape(m?.pileId || '')}"></label><label>Dome<input name="dome" maxlength="100" list="stock-dome-options" required value="${escape(target?.dome || '')}"></label><datalist id="stock-dome-options">${domes.map(d => `<option value="${escape(d)}"></option>`).join('')}</datalist><label>Destination<select name="destination" required><option value="">Pilih Destination...</option>${destinations.map(d => `<option value="${escape(d.destination_name)}">${escape(d.destination_name)}</option>`).join('')}</select></label><p class="hint" id="stock-product-state" role="status"></p></fieldset></form>`;
+  $('#stock-body').innerHTML = `<form id="stock-form" novalidate><fieldset><label>Stockpile<input name="stockpile" maxlength="100" list="stock-options" required value="${escape(m?.stockpile || '')}"></label><label>Pile ID<input name="pileId" maxlength="100" required value="${escape(m?.pileId || '')}"></label><label>Product Code<input name="dome" maxlength="100" list="stock-dome-options" required value="${escape(target?.dome || '')}"></label><datalist id="stock-dome-options">${domes.map(d => `<option value="${escape(d)}"></option>`).join('')}</datalist><label>Destination<select name="destination" required><option value="">Pilih Destination...</option>${destinations.map(d => `<option value="${escape(d.destination_name)}">${escape(d.destination_name)}</option>`).join('')}</select></label><p class="hint" id="stock-product-state" role="status"></p></fieldset></form>`;
   const form = $('#stock-form'); form.elements.destination.value = target?.destination || '';
-  const status = () => { const p = resolveProduct(form.elements.dome.value,form.elements.destination.value,state.masters); $('#stock-product-state').textContent = p ? `Product Code: ${p.productCode}` : 'Product Code belum dikenali secara unik. Pasangan boleh disimpan; ritase memerlukan mapping Product valid dari handover.'; };
+  const touched = new Set();
+  function showFieldError(field, message = '') {
+    const control = form.elements[field], error = $(`#stock-${field}-error`);
+    control.setAttribute('aria-invalid', String(!!message));
+    error.textContent = message; error.hidden = !message;
+  }
+  for (const field of ['stockpile','pileId']) {
+    const control = form.elements[field], error = document.createElement('span');
+    error.id = `stock-${field}-error`; error.className = 'stock-field-error'; error.hidden = true;
+    error.setAttribute('aria-live','polite'); control.after(error);
+    control.setAttribute('aria-describedby',error.id); control.setAttribute('aria-invalid','false');
+    control.addEventListener('blur', () => {
+      touched.add(field);
+      showFieldError(field, stockIdentityErrors(Object.fromEntries(['stockpile','pileId'].map(k => [k,form.elements[k].value])),editing)[field]);
+    });
+    control.addEventListener('input', () => { if (touched.has(field)) showFieldError(field); $('#stock-error').hidden = true; });
+  }
+  function validateIdentity() {
+    const errors = stockIdentityErrors(Object.fromEntries(['stockpile','pileId'].map(k => [k,form.elements[k].value])),editing);
+    for (const field of ['stockpile','pileId']) { touched.add(field); showFieldError(field,errors[field]); }
+    const first = Object.keys(errors)[0];
+    if (first) form.elements[first].focus();
+    return !first;
+  }
+  const status = () => { const p = resolveProduct(form.elements.dome.value,form.elements.destination.value,state.masters); $('#stock-product-state').textContent = p ? 'Mapping Product Code / Destination tersedia.' : 'Pasangan boleh disimpan; tambahkan mapping Product Code / Destination melalui Edit sebelum menyimpan ritase.'; };
   form.oninput = status; form.onchange = status; status();
   actions('<button class="secondary" id="stock-cancel">Cancel</button><button class="primary" type="submit" form="stock-form" id="stock-ok">OK</button>');
   $('#stock-cancel').onclick = () => showList(true);
-  form.onsubmit = e => { e.preventDefault(); if (working) return; busy($('#stock-ok'), async () => {
+  form.onsubmit = e => { e.preventDefault(); if (working || !validateIdentity()) return; busy($('#stock-ok'), async () => {
     working = true; form.querySelector('fieldset').disabled = true; $('#stock-cancel').disabled = true;
     try {
       await flush();
@@ -52,7 +77,12 @@ function showForm(m = null) {
       await context.changed();
       if (sync) await apply(saved);
       showList(true); toast('Pasangan dan mapping tersimpan lokal.');
-    } catch(error) { $('#stock-error').textContent = error.message; $('#stock-error').hidden = false; }
+    } catch(error) {
+      $('#stock-error').textContent = error.message; $('#stock-error').hidden = false;
+      if (error.fields) for (const [field,message] of Object.entries(error.fields)) showFieldError(field,message);
+      form.querySelector('fieldset').disabled = false;
+      if (error.fields) form.elements[Object.keys(error.fields)[0]].focus();
+    }
     finally { working = false; if (form.isConnected) {form.querySelector('fieldset').disabled = false; $('#stock-cancel').disabled = false;} }
   }).catch(context.fail); };
   form.elements.stockpile.focus();

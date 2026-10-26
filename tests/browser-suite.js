@@ -84,7 +84,7 @@
   submit('#entry-form');await until(()=>state.records.some(r=>r.dtNo==='TEST_DT'&&r.origin==='local'),'save UI');
   const saved=state.records.find(r=>r.dtNo==='TEST_DT');equal(saved.operationDate,'2026-10-20','operation date');equal(saved.time,'06.59','edited time saved');
   location.hash='report';await until(()=>!$('#view-report').hidden,'report view');
-  equal($('#report-output').value,line.replace('46315','46315-001').split('\t').map((v,i)=>i===2?'':v).join('\t'),'UI numbered TSV');equal($('#report-count').textContent,'1','UI summary count');
+  equal($('#report-output').value,line.replace('46315','46315-001').split('\t').map((v,i)=>[2,6].includes(i)?'':v).join('\t'),'UI numbered TSV');equal($('#report-count').textContent,'1','UI summary count');
   location.hash='operasional';await until(()=>!$('#view-operasional').hidden,'operation return');
   set($('#entry-form'),{dtNo:'820',time:'08.17'});input($('#entry-form').elements.dtNo);await flushDraft();
   const preservedDraft=structuredClone(state.draft);
@@ -419,11 +419,11 @@
     document.querySelector('#checker-ok').click();
   })();await until(()=>state.session?.checker==='TEST DS CHECKER','DS checker saved');
   location.hash='operasional';await until(()=>!$('#view-operasional').hidden,'new DS input');
-  const choose=(kind)=>{if(kind==='stock'){$('#choose-stock').click();$('#stock-body [data-stock-select]').click();return;}const el=$(`#entry-form [data-mapping="${kind}"]`);el.value=[...el.options].find(o=>o.value)?.value;el.dispatchEvent(new Event('change',{bubbles:true}));};
+  const choose=(kind)=>{if(kind==='stock'){$('#choose-stock').click();$('#stock-body [data-stock-select]').click();return;}$('#choose-product').click();$('#product-body [data-product-select]').click();};
   const dtCases=['820','SAP_821','OTHER_822','823','824','825','826'];
   for(let i=0;i<dtCases.length;i++){
     set($('#entry-form'),{dtNo:dtCases[i],time:`08.${String(i).padStart(2,'0')}`});choose('stock');choose('product');input($('#entry-form').elements.dtNo);await flushDraft();
-    equal($('#entry-form').elements.sourceCode.value,'','new stock source unused');equal($('#entry-form').elements.productCode.value,'5','product mapping');
+    equal($('#entry-form').elements.sourceCode.value,'','new stock source unused');equal($('#entry-form').elements.productCode.value,'','legacy product unused');
     const countBeforeSave=state.records.length;
     $('#save-entry').click();$('#save-entry').click();
     assert($('#save-entry').disabled && $('#save-entry').getAttribute('aria-busy')==='true','fixed save loading');
@@ -431,7 +431,7 @@
     await until(()=>!$('#save-entry').disabled,'save completed');
     equal(state.records.length,countBeforeSave+1,'double click created extra record');
     const savedMapping=state.records.find(r=>r.dtNo===(/^\d+$/.test(dtCases[i])?'SAP_'+dtCases[i]:dtCases[i])&&r.operationDate==='2026-10-21');
-    equal(savedMapping.productCode,'5','hidden product still stored');
+    equal(savedMapping.productCode,'','legacy product blank in new record');
     equal($('#entry-form').elements.dtNo.value,'','next form not prepared');assert(!state.draft.dirty,'new form dirty');
   }
   equal($('#history').children.length,5,'default history exceeds five');
@@ -461,7 +461,7 @@
   const registration = await navigator.serviceWorker.getRegistration();
   equal(registration.scope, location.origin + '/RKEF-Ticketing/', 'unchanged Pages worker scope');
   await until(()=>!!navigator.serviceWorker.controller,'service worker control');
-  const cache=await caches.open('rkef-shell-v1.1.2-stock-popup');const entries=await cache.keys();
+  const cache=await caches.open('rkef-shell-v1.1.2-product-popup');const entries=await cache.keys();
   assert(entries.length>20,'offline shell incomplete');assert(entries.every(r=>r.url.startsWith(location.origin+'/RKEF-Ticketing/')),'external responses cached');
   results.push('PASS existing session/local masters, save, correction, stored-number Report TSV, manual draft persistence and 360px layout');
   results.push('PASS scoped PWA shell cached under /RKEF-Ticketing/; no Sheets responses cached');

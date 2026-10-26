@@ -31,7 +31,7 @@ Keutuhan satu shift merupakan asumsi operasional yang dikonfirmasi owner. Strukt
 ## 3. Kontrak Data Laporan WhatsApp (WhatsApp Report Data Contract)
 
 - Plain text dengan **TAB asli (U+0009)** sebagai delimiter; newline memisahkan transaksi.
-- Tepat 11 kolom per baris transaksi; output kolom ke-3 dan ke-6 benar-benar kosong (keputusan popup material v1.1.2, 26 Oktober 2026). Impor tetap menerima Source Code historis di kolom ke-3 dan mempertahankan sumber audit.
+- Tepat 11 kolom per baris transaksi; output kolom ke-3, ke-6 dan ke-7 benar-benar kosong (keputusan popup material v1.1.2, 26 Oktober 2026). Impor tetap menerima Source Code historis di kolom ke-3 dan mempertahankan sumber audit.
 - Teks yang disalin tidak mempunyai header, pembungkus Markdown, literal escape tambahan, atau backslash di akhir baris.
 - Kolom pertama berisi **Excel date serial + suffix nomor ritase**, dipisahkan tanda `-`.
 - Satu laporan hanya memuat transaksi satu timbangan; laporan handover mewakili satu shift lengkap dan satu tanggal operasi.
@@ -44,8 +44,8 @@ Keutuhan satu shift merupakan asumsi operasional yang dikonfirmasi owner. Strukt
 | 4 | Stockpile | `TS_15` | Tidak dibuat otomatis dari asumsi |
 | 5 | Pile ID | `S6B_40` | Pasangan Stockpile/Pile yang disahkan |
 | 6 | Reserved / Empty | kosong | Dua TAB berurutan antara kolom 5 dan 7 |
-| 7 | Product Code | `1` | Berdasarkan mapping yang disahkan |
-| 8 | Dome | `SCZ-1190` | Berdasarkan mapping yang disahkan |
+| 7 | Empty / legacy Product Code | kosong | Output kosong; impor menerima kode numerik lama sebagai metadata audit |
+| 8 | Product Code (sebelumnya Dome) | `SCZ-1190` | Nilai material dari mapping aktif atau override yang valid |
 | 9 | Destination | `ZHN LINE 26` | Pilihan yang disahkan |
 | 10 | Transaction Time | `7.20` | Output `HH.mm`; sumber asli dipertahankan |
 | 11 | Weighbridge Location | `BDM` | Sama untuk seluruh baris laporan |
@@ -53,9 +53,9 @@ Keutuhan satu shift merupakan asumsi operasional yang dikonfirmasi owner. Strukt
 Contoh sintetis berikut menggunakan TAB asli. Code fence hanya untuk penyajian dokumentasi dan tidak ikut disalin oleh aplikasi. Contoh bukan master data hardcoded atau bukti pengujian:
 
 ```text
-46315-001	SAP_820		TS_15	S6B_40		1	SCZ-1190	ZHN LINE 26	7.20	BDM
-46315-002	SAP_817		TS_15	S6B_40		1	SCZ-1190	ZHN LINE 26	7.23	BDM
-46315-003	SAP_1039		TS_15	S6B_40		1	SCZ-1190	ZHN LINE 26	7.24	BDM
+46315-001	SAP_820		TS_15	S6B_40			SCZ-1190	ZHN LINE 26	7.20	BDM
+46315-002	SAP_817		TS_15	S6B_40			SCZ-1190	ZHN LINE 26	7.23	BDM
+46315-003	SAP_1039		TS_15	S6B_40			SCZ-1190	ZHN LINE 26	7.24	BDM
 ```
 
 Aturan waktu final owner (OD-01 selesai): jam satu atau dua digit (00-23), menit satu atau dua digit (00-59). Satu digit menit berarti puluhan menit; tanpa separator berarti menit `00`. Contoh: `7.2` dan `7.20` menjadi `07.20`, `7.23` menjadi `07.23`, `8.2` menjadi `08.20`, `10.3` menjadi `10.30`, `13.3` menjadi `13.30`, `15` dan `15.00` menjadi `15.00`, `16.4` menjadi `16.40`. Separator sumber adalah titik; normalisasi internal boleh `HH.mm`. Nilai sumber asli wajib disimpan untuk audit. Tolak waktu di luar rentang atau representasi lain yang tidak disahkan; jangan menebak koreksi. Normalisasi format valid tidak menghalangi handover.
@@ -190,7 +190,7 @@ Tetap tepat tiga view utama. Keputusan owner task Report v1.1.1 menggantikan des
 
 ### Operasional v1.1.1
 
-Input utama: nomor DT, popup pasangan Stockpile/Pile, Dome/Destination, waktu, note opsional. Popup memilih dengan satu ketukan dan menutup langsung; Edit Daftar menyediakan Add/Edit/Hapus lokal. Form Add/Edit hanya Stockpile, Pile ID, Dome dan Destination. Pile ID baru tidak memerlukan laporan sebelumnya atau Source Code. Lihat bagian 16 untuk kontrak mapping. Layout dua kolom pada 360px dan tombol Simpan fixed tetap dipertahankan.
+Input utama: nomor DT, popup pasangan Stockpile/Pile, Product Code/Destination, waktu, note opsional. Popup memilih dengan satu ketukan dan menutup langsung; Edit Daftar menyediakan Add/Edit/Hapus lokal. Form Add/Edit hanya Stockpile, Pile ID, Product Code dan Destination. Pile ID baru tidak memerlukan laporan sebelumnya atau Source Code. Lihat bagian 16 untuk kontrak mapping. Layout dua kolom pada 360px dan tombol Simpan fixed tetap dipertahankan.
 
 Unit numerik `820` menjadi `SAP_820`; `SAP_820` tidak diprefix ulang. Kode lengkap non-SAP tetap diterima; identitas historis yang tidak diubah tetap utuh. Keyboard numerik diprioritaskan; kode lengkap dapat ditempel/dipilih dari riwayat. Identitas DT bukan UUID.
 
@@ -264,7 +264,7 @@ Belum ada klaim penerimaan seluruh kontrak baru, uji tempel Excel, uji Android, 
 | OD-07 | Penggunaan lebih dari satu HP untuk timbangan yang sama secara bersamaan dan rekonsiliasi backup antarperangkat | IndexedDB lokal tidak dapat menjamin keunikan global tanpa koordinasi; jangan mengklaim counter global tersinkronisasi |
 | OD-09 | Penguncian/finalisasi laporan, penanganan laporan WA yang sudah dikirim, dan rekonsiliasi perbedaan nomor | Tidak mengetahui status kirim WA. Opsi B terbatas sesi aktif; perlindungan laporan terkirim belum dijamin |
 | OD-10 | Tanggal aktual koreksi/input waktu manual NS, zona waktu dan batas shift resmi | Jangan mengarang tanggal dari HH.mm; edit NS ambigu diblokir. Device date hanya provenance, jam HP harus diverifikasi |
-| OD-11 (SEBAGIAN SELESAI) | Popup tambah/edit/hapus Stockpile/Pile disahkan pada v1.1.2; input Product Code baru dan aturan prefix tambahan belum disahkan | Empat field lokal, Product mengikuti mapping unik existing. Angka unit memakai SAP; prefix lain dimasukkan lengkap, tidak ditebak |
+| OD-11 (SEBAGIAN SELESAI) | Popup tambah/edit/hapus Stockpile/Pile disahkan pada v1.1.2; input Product Code kolom 8 disahkan melalui popup lokal; aturan prefix tambahan belum disahkan | Empat field lokal, Product Code/Destination mengikuti pasangan aktif; kode numerik legacy tidak wajib. Angka unit memakai SAP; prefix lain dimasukkan lengkap, tidak ditebak |
 | OD-08 | Bootstrap tanpa laporan sebelumnya, pemulihan perangkat baru, checker asal laporan dan pembatasan koreksi field identitas | Checker sesi baru sudah diputuskan: input manual operator. Checker asal tidak ditebak. Jangan mengarang tanggal awal, shift, nomor awal, atau metadata hilang untuk bootstrap/pemulihan; butuh prosedur owner yang eksplisit |
 
 Jam batas shift, zona waktu operasional resmi, status T.Ksng/Gtg.Ksng, dan kebijakan retensi/backup yang belum diselesaikan pada PRD tetap terbuka sepanjang tidak dijawab oleh keputusan terbaru ini. Deteksi shift berbasis suffix sudah final dan tidak menunggu keputusan jam batas tersebut.
@@ -312,10 +312,23 @@ Request tertunda disimpan di store pending existing sebelum POST dan dipertahank
 
 Keputusan owner menggantikan kewajiban Source Code dan penundaan UI pasangan lokal. Pilihan menampilkan hanya `Stockpile / Pile ID`, unik tanpa membedakan kapital/spasi ganda, terurut konsisten dan dapat di-scroll. Edit Daftar berada di bawah; mode pengelolaan menyediakan Edit/Hapus setiap pasangan, Add Pile ID dan Kembali. Cancel membatalkan perubahan. Hapus memerlukan konfirmasi dan menonaktifkan seluruh varian identitas pasangan aktif; tidak menyentuh histori/import.
 
-Add/Edit menyimpan empat field dan hubungan Dome/Destination bersama audit dalam satu transaksi IndexedDB existing. Stockpile dan Pile ID boleh baru. Dome memakai pilihan lokal atau input baru yang divalidasi. Destination wajib berasal dari cache master Google existing; jika belum tersedia, Sync Destination di Setup. Pengelolaan pasangan tidak mengirim tulisan ke Google. Duplikat dan edit stale ditolak. Schema v1/nama database tetap.
+Add/Edit menyimpan empat field dan hubungan Product Code/Destination bersama audit dalam satu transaksi IndexedDB existing. Stockpile dan Pile ID boleh baru. Product Code memakai pilihan lokal atau input baru yang divalidasi. Destination wajib berasal dari cache master Google existing; jika belum tersedia, Sync Destination di Setup. Pengelolaan pasangan tidak mengirim tulisan ke Google. Duplikat dan edit stale ditolak. Schema v1/nama database tetap.
 
-Pemilihan atau penambahan pasangan mengisi Dome/Destination otomatis. Edit pilihan aktif menyinkronkan draft; hapus pilihan aktif mengosongkan pasangan/target. Rerender yang tidak terkait mempertahankan override Dome/Destination manual yang sah. Pasangan lama memakai hubungan dari histori impor pasangan yang sama dan provenance master; target ambigu tetap kosong sampai operator menetapkannya melalui Edit Daftar. Tidak mengambil target dari Stockpile lain.
+Pemilihan atau penambahan pasangan mengisi Product Code/Destination otomatis. Edit pilihan aktif menyinkronkan draft; hapus pilihan aktif mengosongkan pasangan/target. Rerender yang tidak terkait mempertahankan override Product Code/Destination manual yang sah. Pasangan lama memakai hubungan dari histori impor pasangan yang sama dan provenance master; target ambigu tetap kosong sampai operator menetapkannya melalui Edit Daftar. Tidak mengambil target dari Stockpile lain.
 
-Product Code berasal dari satu kode unik pada mapping Product/Dome/Destination aktif yang persis cocok. Tidak ada inferensi dari nama Stockpile/Pile/Dome. Pasangan tanpa Product yang unik tetap boleh tersimpan; form Edit menampilkan status dan penyimpanan ritase diblokir dengan pesan eksplisit. Mapping Product diperoleh dari handover yang disahkan; tugas ini tidak menyediakan input Product Code baru. Source Code transaksi baru kosong; metadata Source historis tetap tersimpan. Export selalu tepat 11 kolom TAB, kolom 3 dan 6 kosong, Product Code tetap kolom 7. Laporan lama dengan Source tetap dapat diimpor; sumber mentah tidak ditulis ulang.
+Keputusan terbaru owner v1.1.2 menggantikan kewajiban Product Code numerik: **Legacy Product Code = kolom 7, tidak digunakan lagi untuk ritase baru; Product Code baru = nilai sebelumnya disebut Dome, tetap kolom 8.** Nama field internal `productCode` (legacy) dan `dome` dipertahankan demi kompatibilitas schema v1. Source Code dan Product Code numerik baru kosong. Pasangan Product Code/Destination aktif yang persis cocok cukup untuk menyimpan ritase; variasi kode numerik lama pada pasangan yang sama tidak memblokir mapping. Impor menerima kolom 3/7 lama yang terisi atau kosong dan tidak mengubah sumber/snapshot histori. Serializer mengosongkan kolom 3/6/7 juga saat memproyeksikan record existing, tanpa menulis ulang record.
+
+Kontrol kanan Ritase Baru membuka popup **Product Code / Destination**, menampilkan ringkasan aktif dan aksi Edit. Daftar mendukung pilih satu ketukan, Tambah Mapping, Edit per pasangan dan Cancel. Add/Edit dua field memakai Product Code teks aman dan Destination aktif dari cache Google; kosong/duplikat/stale ditolak. ID mapping dipertahankan; varian legacy pasangan yang sama dirangkum. Edit mapping master secara eksplisit memperbarui relasi Stockpile/Pile terkait bersama audit atomik; UI menjelaskan dampaknya. Memilih override per ritase hanya mengubah draft, tidak mengubah master. Cancel form tidak menyimpan draft maupun master. Perubahan tersedia setelah reload/offline; tidak ada store/schema baru atau tulisan Google. Reset total tetap menghapus seluruh mapping lokal. Lihat [panduan mapping](../development/MATERIAL_MAPPING.md).
 
 Modal native memblokir interaksi form/navbar dan menyembunyikan Simpan fixed. Penutupan mengikuti view aktif. Reset Mulai Sesi Baru tetap menghapus seluruh master/pasangan lokal dan hanya mempertahankan cache Destination dan Checker Google. Perubahan master tidak mengubah UUID, nomor, snapshot atau audit transaksi tersimpan. Penerimaan Android/Chrome HP dan Google live tetap belum terverifikasi.
+
+### Validasi penamaan Add/Edit v1.1.2
+
+Keputusan owner 26 Oktober 2026: identitas baru melalui popup memakai pola berikut, bukan whitelist kode yang sudah terdaftar.
+
+- Stockpile: `BR-C_` + dua digit; `DS-C_` + dua digit + opsional satu huruf kapital; `LS_` atau `SS_` + dua digit. Contoh: `BR-C_05`, `DS-C_05B`, `LS_46`, `SS_14`.
+- Pile ID: awalan `BR-C`, `DS-C`, `C`, `L`, atau `S` + satu/dua digit + opsional satu huruf kapital; `GT` + satu/dua digit; atau literal `SLNC` / `Eppe`. Lanjut underscore, lalu opsional `PL`, `S`, atau `L` dan dua/tiga digit. Contoh: `S14_38`, `L6_308`, `BR-C2_S02`, `S6_PL01`, `Eppe_S01`.
+- Kapitalisasi persis, termasuk `Eppe`. Tidak mengganti minus/underscore atau kapitalisasi saat mengetik. Hanya whitespace awal/akhir identitas yang dibuang saat simpan. Kedua pola berdiri sendiri; tidak menebak hubungan Stockpile–Pile dari awalan.
+- Keluar field atau OK memvalidasi format, menampilkan pesan spesifik terkait field melalui `aria-describedby` / `aria-invalid`; submit invalid memfokuskan field pertama yang perlu diperbaiki dan tidak menulis master/audit. Duplikat pasangan tetap ditolak oleh transaksi atomik.
+
+Aturan ini hanya untuk penambahan dan perubahan identitas lewat Add/Edit. Master handover legacy seperti `TS_14`, `TS_15`, dan `C_02` tetap tersedia serta dapat dipilih. Pada Edit, setiap field identitas yang tidak berubah boleh mempertahankan nilai lama; mengganti Product Code/Destination tidak mewajibkan rename. Field identitas yang diubah harus valid sendiri, sedangkan field legacy lain yang tetap sama boleh dipertahankan. Impor, histori, ekspor, dan validasi record umum tidak memakai pola popup ini. Tidak ada migrasi, rename massal, perubahan schema atau Source Code wajib.

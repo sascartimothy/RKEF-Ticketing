@@ -3,8 +3,9 @@ import { $, escape, toast, busy, confirmAction, displayStamp } from './ui-compon
 import { localTimeSeconds, localDate, draftTimeMode, timePrecision, normalizeManualTime } from './time-date.js';
 import { assertRecord, normalizeDT } from './validation.js';
 import { potentialDuplicates } from './wa-exporter.js';
-import { stockPairs, resolveProduct } from './master-data.js';
+import { stockPairs, resolveProduct, productPairs } from './master-data.js';
 import { initStockPopup, renderStockButton } from './stock-ui.js';
+import { initProductPopup, renderProductButton } from './product-ui.js';
 let clockTimer;
 let context, queue = Promise.resolve(), draftFailed = false, draftWrites = 0, saving = false, expanded = false, correction = null, correcting = false;
 const fields = ['dtNo', 'stockpile', 'pileId', 'sourceCode', 'productCode', 'dome', 'destination', 'time', 'note'];
@@ -26,7 +27,7 @@ export function finishSessionEnd(committed = false) {
     $('#correction-dialog').close(); correction = null;
     $('#correction-form').reset();
     $('#audit-dialog').close(); $('#audit-content').replaceChildren();
-    $('#checker-dialog').close(); $('#stock-dialog').close();
+    $('#checker-dialog').close(); $('#stock-dialog').close(); $('#product-dialog').close();
     for (const details of document.querySelectorAll('main details')) details.open = false;
     fillDraft();
   }
@@ -85,14 +86,14 @@ function initTimeInput(form, live = false) {
 }
 function populateMappings(form, original = null) {
   for (const kind of ['stock', 'product']) {
-    const keys = kind === 'stock' ? ['stockpile', 'pileId'] : ['productCode', 'dome', 'destination'];
+    const keys = kind === 'stock' ? ['stockpile', 'pileId'] : ['dome', 'destination'];
     const select = form.querySelector(`[data-mapping="${kind}"]`);
     if (kind === 'stock' && form.id === 'entry-form') { renderStockButton(); continue; }
-    const list = kind === 'stock' ? stockPairs(state.masters) : activeMasters(kind).filter(m => resolveProduct(m.dome,m.destination,state.masters)?.productCode === m.productCode);
+    if (kind === 'product' && form.id === 'entry-form') { renderProductButton(); continue; }
+    const list = kind === 'stock' ? stockPairs(state.masters) : productPairs(state.masters);
     if (original && !list.some(m => keys.every(k => m[k] === original[k]))) list.push({ ...original, id: 'original' });
     if (kind === 'product' && form.elements.dome.value && !list.some(m => keys.every(k => m[k] === form.elements[k].value))) list.push({id:'incomplete',...Object.fromEntries(keys.map(k => [k, form.elements[k].value]))});
-    const blocked = activeMasters(kind).length - list.length;
-    select.innerHTML = '<option value="">Pilih pasangan yang disahkan…</option>' + (blocked > 0 ? '<option disabled>Mapping bertentangan ditahan — periksa handover / keputusan owner</option>' : '') + list.map(m => `<option value="${escape(m.id)}">${escape(kind === 'stock' ? `${m.stockpile} / ${m.pileId}` : `${m.dome} / ${m.destination}`)}</option>`).join('');
+    select.innerHTML = '<option value="">Pilih pasangan yang disahkan…</option>' + list.map(m => `<option value="${escape(m.id)}">${escape(kind === 'stock' ? `${m.stockpile} / ${m.pileId}` : `${m.dome} / ${m.destination}`)}</option>`).join('');
     select.value = list.find(m => keys.every(k => m[k] === form.elements[k].value))?.id || '';
     select.onchange = () => {
       const m = select.value === 'original' ? original : state.masters.find(m => m.id === select.value);
@@ -130,10 +131,10 @@ export function renderHistory() {
   $('#more-history').textContent = expanded ? 'Tampilkan Lebih Sedikit' : `Lihat Semua ${records.length} Ritase`;
 }
 function approvedMappings(data, original = null) {
-  for (const [kind, keys] of [['stock', ['stockpile', 'pileId']], ['product', ['productCode', 'dome', 'destination']]]) {
+  for (const [kind, keys] of [['stock', ['stockpile', 'pileId']], ['product', ['dome', 'destination']]]) {
     if (original && keys.every(k => original[k] === data[k])) continue;
     const m = activeMasters(kind).find(m => keys.every(k => m[k] === data[k]));
-    if (!m || (kind === 'product' && resolveProduct(data.dome,data.destination,state.masters)?.productCode !== data.productCode)) throw Error('Mapping material belum lengkap atau ambigu. Periksa Product/Dome/Destination dari handover yang disahkan.');
+    if (!m || (kind === 'product' && !resolveProduct(data.dome,data.destination,state.masters))) throw Error('Mapping material belum lengkap atau ambigu. Periksa Product Code / Destination dari handover yang disahkan.');
   }
 }
 async function save(form, original = null, captured = null) {
@@ -150,7 +151,7 @@ async function save(form, original = null, captured = null) {
   data.timePrecision = timePrecision(data.time);
   delete data.savedAt;
   if (draft?.editId && !original) throw Error('Draft koreksi versi lama dipertahankan. Periksa draft sebelum membatalkannya; gunakan popup Koreksi.');
-  if (!original) data.sourceCode = '';
+  if (!original) { data.sourceCode = ''; data.productCode = ''; }
   data.dtNo = normalizeDT(data.dtNo, original?.dtNo);
   assertRecord(data); approvedMappings(data, original);
   let duplicateConfirmed = false;
@@ -163,6 +164,7 @@ async function save(form, original = null, captured = null) {
 }
 export function initOperational(ctx) {
   context = ctx;
+  initProductPopup(ctx, () => { renderProductButton(); return persistDraft(); }, flushDraft);
   initStockPopup(ctx, () => { populateMappings($('#entry-form')); return persistDraft(); }, flushDraft);
   clearInterval(clockTimer);
   clockTimer = setInterval(tickClock, 1000);

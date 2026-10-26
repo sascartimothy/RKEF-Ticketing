@@ -71,7 +71,7 @@
           <form id="entry-form" novalidate><fieldset id="entry-fields"><label class="large-label">Nomor Dump Truck<input name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
 <div class="entry-mappings">
 <label>Stockpile / Pile ID<button type="button" id="choose-stock" data-mapping="stock" class="secondary full" aria-haspopup="dialog">Pilih...</button></label>
-<label>Dome / Destination<select data-mapping="product" required></select></label>
+<label>Product Code / Destination<button type="button" id="choose-product" data-mapping="product" class="secondary"><span id="product-summary"></span><span>Edit</span></button></label>
 </div>
 <input type="hidden" name="stockpile"><input type="hidden" name="pileId"><input type="hidden" name="sourceCode"><input type="hidden" name="productCode"><input type="hidden" name="dome"><input type="hidden" name="destination">
 <label>Waktu Transaksi (HH.mm.ss)<input name="time" inputmode="numeric" autocomplete="off" placeholder="07.20.00" maxlength="8" required></label>
@@ -119,10 +119,11 @@
   <dialog id="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Konfirmasi</h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel" class="secondary">Batal</button><button value="ok" class="primary" id="confirm-ok">Lanjutkan</button></div></form></dialog>
   <dialog id="correction-dialog" aria-labelledby="correction-title"><h2 id="correction-title">Koreksi ritase</h2><form id="correction-form" novalidate><fieldset><label class="large-label">Nomor Dump Truck<input name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
 <label>Stockpile / Pile ID<select data-mapping="stock" required></select></label>
-<label>Product / Dome / Destination<select data-mapping="product" required></select></label>
+<label>Product Code / Destination<select data-mapping="product" required></select></label>
 <input type="hidden" name="stockpile"><input type="hidden" name="pileId"><input type="hidden" name="sourceCode"><input type="hidden" name="productCode"><input type="hidden" name="dome"><input type="hidden" name="destination">
 <label>Waktu Transaksi (HH.mm.ss)<input name="time" inputmode="numeric" autocomplete="off" placeholder="07.20.00" maxlength="8" required></label>
 <label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label><div id="correction-error" class="alert danger" role="alert" hidden></div><div class="dialog-actions"><button type="button" id="cancel-correction" class="secondary">Batal</button><button type="submit" class="primary">Simpan koreksi</button></div></fieldset></form></dialog>
+  <dialog id="product-dialog" aria-labelledby="product-title"><h2 id="product-title">Product Code / Destination</h2><div id="product-body"></div><div id="product-error" class="alert danger" role="alert" hidden></div><div id="product-actions" class="dialog-actions"></div></dialog>
   <dialog id="stock-dialog" aria-labelledby="stock-title"><h2 id="stock-title">Pilih Stockpile / Pile ID</h2><div id="stock-body"></div><div id="stock-error" class="alert danger" role="alert" hidden></div><div id="stock-actions" class="dialog-actions"></div></dialog>
   <dialog id="audit-dialog"><h2>Jejak transaksi</h2><div id="audit-content"></div><form method="dialog"><button class="secondary">Tutup</button></form></dialog>
   <dialog id="checker-dialog" aria-labelledby="checker-title"><h2 id="checker-title">Pilih Checker</h2>

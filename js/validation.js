@@ -19,8 +19,8 @@ export function validateRecord(record, { historical = false, allowUnknownChecker
     if (historical && ['checker', 'shift'].includes(field)) continue;
     if (field === 'sourceCode' && (record[field] === '' || record[field] === undefined)) continue;
     if (allowUnknownChecker && field === 'checker' && record.checker === '' && record.checkerConfirmed === false) continue;
-    if (field === 'productCode' && !record[field]) { errors.push('Product Code belum dapat ditentukan secara unik. Periksa mapping Product/Dome/Destination dari handover yang disahkan. Pasangan tetap tersimpan.'); continue; }
-    const error = textError(record[field], field, field === 'checker' ? 4100 : 100);
+    if (field === 'productCode' && (record[field] === '' || record[field] === undefined)) continue;
+    const error = textError(record[field], field === 'dome' ? 'Product Code' : field, field === 'checker' ? 4100 : 100);
     if (error) errors.push(error);
   }
   if (!validTime(record.time)) errors.push('Jam harus HH.mm atau HH.mm.ss (00.00.00–23.59.59).');
@@ -34,6 +34,21 @@ export function assertRecord(record, options) {
   if (errors.length) throw Error(errors.join(' '));
 }
 export const nameKey = value => String(value).replace(/\s+/g, ' ').trim().toUpperCase();
+// Popup identity rules only: never apply these to imported/history records.
+export const STOCKPILE_PATTERN = /^(?:BR-C_\d{2}|DS-C_\d{2}[A-Z]?|LS_\d{2}|SS_\d{2})$/;
+export const PILE_ID_PATTERN = /^(?:BR-C\d{1,2}[A-Z]?|DS-C\d{1,2}[A-Z]?|C\d{1,2}[A-Z]?|GT\d{1,2}|L\d{1,2}[A-Z]?|S\d{1,2}[A-Z]?|SLNC|Eppe)_(?:PL\d{2,3}|S\d{2,3}|L\d{2,3}|\d{2,3})$/;
+export function stockIdentityErrors(input, original = null) {
+  const errors = {};
+  for (const [field, pattern, message] of [
+    ['stockpile', STOCKPILE_PATTERN, 'Format Stockpile tidak sesuai. Contoh: SS_14, LS_02, BR-C_05, atau DS-C_05B.'],
+    ['pileId', PILE_ID_PATTERN, 'Format Pile ID tidak sesuai. Contoh: S14_38, L6_308, BR-C2_S02, atau S6_PL01.']
+  ]) {
+    const value = typeof input[field] === 'string' ? input[field].trim() : '';
+    if (value && value === original?.[field]) continue;
+    if (!value || !pattern.test(value)) errors[field] = message;
+  }
+  return errors;
+}
 export function destinationName(raw) {
   const name = String(raw).replace(/\s+/g, ' ').trim();
   if (name.length < 2 || name.length > 80 || /^[=+@'\-]/.test(name) || /[<>\u0000-\u001f\u007f]/.test(raw)) throw Error('Destination: 2–80 karakter, tanpa formula, TAB, atau karakter kontrol.');

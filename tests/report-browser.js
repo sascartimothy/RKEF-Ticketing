@@ -28,7 +28,7 @@
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { copied = text; } } });
     await $('#copy-report').onclick();
     assert(copied?.split('\n').length === 605 && copied.includes('\t\t'), 'Full clipboard uses real TAB');
-    assert(copied.split('\n').every(line => line.split('\t').length === 11 && line.split('\t')[5] === '' && line.split('\t')[9] === '15.23'), '11 columns/empty sixth/truncated seconds');
+    assert(copied.split('\n').every(line => line.split('\t').length === 11 && [2,5,6].every(i => line.split('\t')[i] === '') && line.split('\t')[7] === 'REPORT_DOME' && line.split('\t')[8] === 'REPORT DESTINATION' && line.split('\t')[9] === '15.23'), '11 columns/empty sixth/truncated seconds');
     assert($('#report-status').textContent.includes('605 ritase disalin'), 'Copy status');
     navigator.clipboard.writeText = async () => { throw Error('blocked'); };
     document.execCommand = () => false;

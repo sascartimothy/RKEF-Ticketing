@@ -393,3 +393,59 @@ Hasil pengujian lokal, data sintetis dan profil Chromium terisolasi:
 Perintah verifikasi: `npm.cmd test`, `npm.cmd run test:browser`, `npm.cmd run check:docs`, dan `git diff --check`. Screenshot lokal sintetis berada di `private-data/qa/stock-{select,manage,add}-{360,1280}.png` (ignored, bukan asset publik). Pengujian browser memblokir seluruh request eksternal; tidak menulis live Sheets. Android/Chrome HP, keyboard Android, tempel WA/Excel aktual dan integrasi Google live tetap **NOT VERIFIED**.
 
 File implementasi tugas: `index.html`, `styles.css`, `js/stock-ui.js`, `js/operational-ui.js`, `js/master-data.js`, `js/database.js`, `js/validation.js`, `js/wa-exporter.js`, `js/state.js`, `js/app.js`, `sw.js`, `scripts/public-files.cjs`. Pengujian: `tests/stock-popup-browser.js`, `tests/stock-mapping.test.js`, `tests/browser-suite.js`, `tests/domain.test.js`, `tests/live-clock-browser.js`, `tests/operational-layout-browser.js`, `scripts/browser-test.cjs`. Dokumentasi: `AGENTS.md`, `README.md`, spesifikasi operasional dan dokumen ini. Perubahan lokal yang sudah ada saat tugas dimulai dipertahankan. Versi tetap v1.1.2; database/schema tetap; tidak mengubah Apps Script, Google, Git atau deployment.
+
+## Validasi format popup Stockpile / Pile ID v1.1.2 — 26 Oktober 2026
+
+Aturan penamaan hanya digunakan oleh Add/Edit pasangan lokal. Stockpile mendukung BR-C/DS-C/LS/SS sesuai pola owner; Pile ID mendukung BR-C/DS-C/C/GT/L/S/SLNC/Eppe dan suffix angka/S/L/PL. Kapitalisasi tidak diubah, `Eppe` dipertahankan, whitespace awal/akhir dibuang ketika menyimpan. Kode baru yang sesuai pola boleh dibuat; tidak ada aturan kecocokan awalan antar-field. Lihat [aturan operasional](../requirements/RKEF_OPERATIONAL_SPEC.md#validasi-penamaan-addedit-v112).
+
+| Pemeriksaan | Hasil lokal |
+|---|---|
+| Contoh resmi | PASS seluruh 22 Stockpile dan 29 Pile ID; kombinasi lintas kelompok juga diterima; kode baru `LS_46` / `S99_PL123` valid |
+| Input salah | PASS `SS-14`, `SS14`, `LS 02`, `BR_C_05`, `DS-C05`, `ss_14`, `S14-38`, `S1438`, `L6 308`, `BR_C2_S02`, `S6-PL01`, `S14_`, `s14_38`, prefix/panjang/suffix invalid dan field kosong ditolak |
+| Popup | PASS belum ada error saat dibuka; blur menandai field terkait; OK memblokir input invalid dan fokus field pertama; aria-invalid/aria-describedby terhubung; tidak mengganti karakter; Cancel tidak menyimpan |
+| Transaksi | PASS invalid submit dan pemanggilan service langsung tidak mengubah snapshot database; edit invalid ditolak; duplikat tetap ditolak; transaksi stale/abort dan audit atomik tetap aman |
+| Legacy | PASS impor nyata sintetis `TS_14`, `TS_15`, `C_02` + Source Code lama menghasilkan master aktif; edit Dome/Destination tetap berhasil; nilai identitas lama yang tidak berubah dipertahankan per field; pergantian identitas invalid ditolak; histori tetap identik |
+| Mapping | PASS Add kode baru, trim saat simpan, autofill Dome/Destination/Product unik, override manual, Product hilang/ambigu diblokir untuk ritase, soft delete dan reload offline |
+| Export/regresi | PASS TSV 11 kolom, kolom 3/6 kosong dan 7 Product; Opsi B, live clock, multi-Checker, Report 605 ritase, reset total, offline PWA dan preview/dev worker |
+| Layout | PASS popup normal dan pesan error 360px/1280px; Simpan fixed tersembunyi; screenshot `private-data/qa/stock-error-{360,1280}.png` diperiksa visual |
+
+Perintah akhir: Node portable v24.16.0 / npm 11.13.0, `npm.cmd test` PASS (57 tes Node, kontrak Apps Script mock, workspace/offline inventory, docs), `npm.cmd run test:browser` PASS (Chromium dengan profil/server/IndexedDB sintetis terisolasi dan trafik eksternal diblokir), `npm.cmd run check:docs` PASS (11 dokumen / 74 tautan lokal), `git diff --check` PASS. Uji browser awal mendeteksi nama cache lama yang hardcoded pada tes; nama tersebut diselaraskan dengan cache baru lalu seluruh suite dijalankan ulang dan lulus.
+
+File berubah pada tugas ini: `js/validation.js`, `js/stock-ui.js`, `js/database.js`, `styles.css`, `sw.js`, `tests/stock-mapping.test.js`, `tests/stock-popup-browser.js`, `tests/browser-suite.js`, `scripts/browser-test.cjs`, spesifikasi operasional dan dokumen ini. Status awal bersih; status akhir `main`, 11 modified, tanpa staging/commit/Git mutation/deployment. Versi aplikasi tetap v1.1.2; hanya identitas cache berubah menjadi `rkef-shell-v1.1.2-stock-format`. Schema IndexedDB, Apps Script dan Google Sheets tidak diubah.
+
+Android/Chrome HP fisik, keyboard/screen reader perangkat nyata, tempel WhatsApp/Excel aktual dan Google live tetap **NOT VERIFIED**. Hasil desktop sintetis tidak membuktikan gate rilis tersebut. Tidak ada data operasional browser asli yang digunakan atau dihapus.
+
+
+## Product Code dan popup mapping v1.1.2 — 26 Oktober 2026
+
+Bagian ini menggantikan kontrak material/TSV pada dua catatan pengujian v1.1.2 sebelumnya: Product Code baru adalah nilai sebelumnya disebut Dome, kolom 8; Product Code numerik legacy kolom 7 tidak lagi wajib. Catatan sebelumnya tetap disimpan sebagai histori pengujian.
+
+Label operator diperbarui pada kolom kanan Ritase Baru, popup Stockpile/Pile empat field, popup Product Code/Destination beserta form Tambah/Edit, pesan status/error mapping dan label Koreksi. Native dropdown kanan Ritase Baru diganti tombol Edit dengan ringkasan aktif. Add/Edit mapping lokal memakai store masters/audit existing, mempertahankan ID, memvalidasi kosong/teks aman/duplikat serta Destination cache. Edit master secara eksplisit memperbarui relasi Stockpile/Pile terkait atomik; pilih per ritase hanya override draft. Cancel tidak menyimpan perubahan. Tidak ada Hapus Mapping baru, migrasi schema, tulisan Google atau penulisan ulang histori.
+
+| Pemeriksaan | Hasil dan batas bukti |
+|---|---|
+| `npm.cmd test` | PASS: 58 tes Node, kontrak Apps Script mock, public/offline inventory, workspace dan dokumen |
+| `npm.cmd run test:browser` | PASS: Chromium desktop headless, profil/server/database sintetis terisolasi; seluruh trafik eksternal diblokir |
+| Popup Product Code | PASS: Edit membuka popup; daftar/pilih satu ketukan, Add/Edit, Cancel, kosong/duplikat/teks tidak aman ditolak, ID stabil |
+| Relasi dan integritas | PASS: auto-fill, override/rerender, edit mapping lain mempertahankan override, edit mapping terkait memperbarui relasi stok, stale ditolak, abort membatalkan master/relasi/audit; histori dan cache Destination identik |
+| Simpan dan handover | PASS: impor nyata legacy kolom 3/7 terisi diikuti handover kolom 3/7 kosong pada database sintetis; sesi berikutnya aktif dan ritase tersimpan tanpa kode numerik; record lama tidak berubah |
+| Report TSV | PASS: 11 kolom/10 TAB, kolom 3/6/7 kosong, Product Code kolom 8 dan Destination kolom 9; clipboard/TXT identik untuk 605 ritase; serializer read-only untuk record legacy |
+| Persistensi | PASS: reload jaringan offline mempertahankan mapping hasil Edit, draft/override, histori dan app shell baru |
+| Regresi | PASS: popup stok empat field dan penamaan legacy, Multi-Checker, Opsi B, koreksi/audit, AUTO/MANUAL, reset total/koneksi stale, Report dan transisi worker preview ke dev |
+| Layout | PASS: 360px/1280px tanpa overflow; daftar panjang popup scroll; fixed save tersembunyi ketika modal terbuka dan kembali sesuai navigasi; screenshot select/add/long-list diperiksa visual |
+| `npm.cmd run check:docs` | PASS: target, case dan anchor lokal; URL eksternal tidak diuji live |
+| `git diff --check` | PASS; Git memberi pemberitahuan normalisasi LF/CRLF pada styles.css, tanpa error whitespace |
+
+Bukti TSV sintetis (TAB asli):
+
+```text
+46320-084	SAP_820		SS_14	S14_33			SCZ-1190	ZHN LINE 26	17.25	BDM
+```
+
+Hasil split: `["46320-084","SAP_820","","SS_14","S14_33","","","SCZ-1190","ZHN LINE 26","17.25","BDM"]`. Kolom kosong tetap memiliki delimiter. Snapshot/import mentah tetap menyimpan metadata lama; proyeksi ekspor baru tidak memodifikasi database.
+
+File yang diubah pada tugas ini: `AGENTS.md`, `README.md`, `docs/README.md`, `docs/requirements/RKEF_OPERATIONAL_SPEC.md`, `docs/testing/LOCAL_TEST_RESULTS.md`, `index.html`, `js/database.js`, `js/master-data.js`, `js/operational-ui.js`, `js/stock-ui.js`, `js/validation.js`, `js/wa-exporter.js`, `scripts/browser-test.cjs`, `scripts/public-files.cjs`, `styles.css`, `sw.js`, `tests/browser-suite.js`, `tests/domain.test.js`, `tests/live-clock-browser.js`, `tests/operational-layout-browser.js`, `tests/report-browser.js`, `tests/stock-mapping.test.js`, `tests/stock-popup-browser.js`. File baru: `docs/development/MATERIAL_MAPPING.md`, `js/product-ui.js`, `tests/product-popup-browser.js`.
+
+Git akhir: branch `main`, 23 modified + 3 untracked, tidak ada staged file. Sebelas file sudah modified saat tugas dimulai dan perubahannya dipertahankan. Tidak menjalankan add/commit/push/pull/reset/clean atau deployment. Versi tetap 1.1.2, schema IndexedDB tetap v1, cache worker `rkef-shell-v1.1.2-product-popup`. Screenshot sintetis: `private-data/qa/product-{select,add,long-list}-{360,1280}.png` (ignored, bukan asset publik). Modul baru tercantum pada allowlist server dan inventory offline.
+
+Android/Chrome HP fisik, keyboard/screen reader perangkat nyata, tempel WhatsApp/Excel aktual, Google live dan konflik dua HP tetap **NOT VERIFIED**. Seluruh hasil lokal di atas tidak menggantikan gate rilis. Tidak menggunakan atau menghapus data browser operasional asli. Panduan implementasi: [mapping material](../development/MATERIAL_MAPPING.md).

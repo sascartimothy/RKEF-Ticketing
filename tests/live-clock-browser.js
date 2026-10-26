@@ -68,7 +68,7 @@
       instant+=1000;await wait(1100);equal(time.value,localTimeSeconds(),'Resumed clock frozen');
     }
     // Populate approved pairs, leave time AUTO and delay the draft flush past submit.
-    for(const kind of ['stock','product']) {if(kind==='stock'){$('#choose-stock').click();$('#stock-body [data-stock-select]').click();continue;}const select=form.querySelector(`[data-mapping="${kind}"]`);select.value=[...select.options].find(o=>o.value&&!o.disabled).value;select.dispatchEvent(new Event('change',{bubbles:true}));}
+    for(const kind of ['stock','product']) {if(kind==='stock'){$('#choose-stock').click();$('#stock-body [data-stock-select]').click();continue;}$('#choose-product').click();$('#product-body [data-product-select]').click();}
     input(form.elements.dtNo,'97001');await flushDraft();
     let release, entered=false;
     Database.prototype.saveDraft=async function(value){entered=true;await new Promise(r=>release=r);return originalSaveDraft.call(this,value);};
@@ -81,7 +81,7 @@
     equal(submitted.data.time,'14.27.38','Time not captured before async flush');equal(submitted.options.clockDate,'2026-10-21','Capture date');
     const auto=state.records.find(r=>r.dtNo==='SAP_97001');equal(auto.time,'14.27.38','Save delay changed AUTO');equal(auto.timePrecision,'second','Second metadata');equal(auto.sourceTime,'14.27.38','Source time');equal(auto.editedTime,auto.time,'Audit time');equal(state.draft.timeMode,'auto','Next draft not AUTO');
     Database.prototype.saveDraft=originalSaveDraft;Database.prototype.saveRecord=originalSaveRecord;
-    for(const kind of ['stock','product']) {if(kind==='stock'){$('#choose-stock').click();$('#stock-body [data-stock-select]').click();continue;}const select=form.querySelector(`[data-mapping="${kind}"]`);select.value=[...select.options].find(o=>o.value&&!o.disabled).value;select.dispatchEvent(new Event('change',{bubbles:true}));}
+    for(const kind of ['stock','product']) {if(kind==='stock'){$('#choose-stock').click();$('#stock-body [data-stock-select]').click();continue;}$('#choose-product').click();$('#product-body [data-product-select]').click();}
     input(form.elements.dtNo,'97002');input(time,'1425');await flushDraft();form.requestSubmit();
     await until(()=>state.records.some(r=>r.dtNo==='SAP_97002')&&!$('#entry-fields').disabled);
     const manual=state.records.find(r=>r.dtNo==='SAP_97002');equal(manual.time,'14.25','Manual save used device time');equal(manual.timePrecision,'minute','Unknown seconds invented');

@@ -109,6 +109,12 @@ async function ready() {
     catch(error) { console.error(await evaluate("JSON.stringify({toast:document.querySelector('#toast')?.textContent,confirm:document.querySelector('#confirm-dialog')?.textContent,preview:document.querySelector('#import-preview')?.textContent})"));throw error; }
     for(const line of result)console.log(line);
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/checkers-browser.js'),'utf8')));
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/product-popup-browser.js'),'utf8')));
+    await cdp('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
+    await cdp('Page.reload',{});await pause(400);await ready();
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/product-popup-browser.js'),'utf8')));
+    await cdp('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
+    await cdp('Page.reload',{});await pause(400);await ready();
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/stock-popup-browser.js'),'utf8')));
     await cdp('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
     await cdp('Page.reload',{});await pause(400);await ready();
@@ -181,17 +187,29 @@ async function ready() {
     await evaluate("location.hash='operasional'");await pause(200);
     await evaluate("document.querySelector('#toast').hidden=true;window.scrollTo(0,0)");
     const operationLayout=await cdp('Page.getLayoutMetrics');
+    const captureProduct = async width => {
+      await evaluate("document.querySelector('#choose-product').click()");
+      for (const mode of ['select','add','long-list']) {
+        if (mode==='add') await evaluate("document.querySelector('#product-add').click();document.activeElement.blur()");
+        if (mode==='long-list') await evaluate("document.querySelector('#product-cancel').click();document.querySelector('#choose-product').click();const body=document.querySelector('#product-body');body.append(...Array.from({length:40},()=>body.querySelector('.master-item').cloneNode(true)))");
+        console.log(await evaluate(`(()=>{const d=document.querySelector('#product-dialog'),r=d.getBoundingClientRect(),body=document.querySelector('#product-body');if(!d.open||r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight||body.scrollWidth>body.clientWidth||document.querySelector('#save-entry').checkVisibility())throw Error('Product modal layout overflow');if('${mode}'==='long-list'&&body.scrollHeight<=body.clientHeight)throw Error('Long mapping list must scroll');return 'PASS Product ${mode} popup geometry/scroll/fixed-save hiding at ${width}px';})()`));
+        fs.writeFileSync(path.join(qa,`product-${mode}-${width}.png`),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+      }
+      await evaluate("document.querySelector('#product-close').click();document.activeElement.blur()");
+    };
     const captureStock = async width => {
       await evaluate("document.querySelector('#choose-stock').click()");
-      for(const mode of ['select','manage','add']) {
+      for(const mode of ['select','manage','add','error']) {
         if(mode==='manage')await evaluate("document.querySelector('#stock-manage').click()");
         if(mode==='add')await evaluate("document.querySelector('#stock-add').click();document.activeElement.blur()");
+        if(mode==='error')await evaluate("document.querySelector('#stock-form').elements.stockpile.value='SS-14';document.querySelector('#stock-form').elements.pileId.value='S14_';document.querySelector('#stock-ok').click()");
         console.log(await evaluate(`(()=>{const d=document.querySelector('#stock-dialog'),r=d.getBoundingClientRect();if(!d.open||r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight||document.querySelector('#stock-body').scrollWidth>document.querySelector('#stock-body').clientWidth||document.querySelector('#save-entry').checkVisibility())throw Error('Stock modal layout overflow');return 'PASS stock ${mode} modal geometry and fixed-save hiding at ${width}px';})()`));
         fs.writeFileSync(path.join(qa,`stock-${mode}-${width}.png`),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
       }
       await evaluate("document.querySelector('#stock-cancel').click();document.querySelector('#stock-back').click();document.querySelector('#stock-close').click();document.activeElement.blur()");
     };
     await captureStock(360);
+    await captureProduct(360);
     fs.writeFileSync(path.join(qa,'operasional-viewport-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
     fs.writeFileSync(path.join(qa,'operasional-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:360,height:operationLayout.cssContentSize.height,scale:1}})).data,'base64'));
     await evaluate("document.querySelector('#history [data-edit]').click()");await pause(100);
@@ -218,6 +236,7 @@ async function ready() {
     await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/operational-layout-browser.js'),'utf8')));
     await captureStock(1280);
+    await captureProduct(1280);
     fs.writeFileSync(path.join(qa,'operasional-desktop.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
     await evaluate("location.hash='setup'");await pause(200);
     console.log(await evaluate(`(()=>{const cards=[...document.querySelectorAll('#view-setup article')];if(document.documentElement.scrollWidth>1280)throw Error('Setup overflow desktop');for(let i=1;i<cards.length;i++)if(cards[i].getBoundingClientRect().top<cards[i-1].getBoundingClientRect().bottom)throw Error('Setup not vertical desktop');return 'PASS Setup vertical order and no horizontal overflow at 1280px';})()`));

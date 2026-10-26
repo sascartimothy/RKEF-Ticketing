@@ -1,9 +1,9 @@
 import { normalizeCheckers, checkerText, validateCheckers, validateCheckerRequest, validListVersion } from './checkers.js';
 import { uid, now, clone } from './state.js';
-import { assertRecord, destinationName, textError } from './validation.js';
+import { assertRecord, destinationName, textError, stockIdentityErrors } from './validation.js';
 import { calendarDate, validTime, excelSerial, normalizeTime, timeOrderKey, timePrecision } from './time-date.js';
 import { validateList } from './apps-script-api.js';
-import { mappingErrors, mappingFromRecord, mappingKey, conflicts, deriveMappings, pairKey, resolveProduct } from './master-data.js';
+import { mappingErrors, mappingFromRecord, mappingKey, conflicts, deriveMappings, pairKey, resolveProduct, productPairKey, stockTarget } from './master-data.js';
 import { inspectHandover, sourceDigest } from './wa-parser.js';
 import { potentialDuplicates } from './wa-exporter.js';
 export const STORES = ['records', 'masters', 'settings', 'cache', 'audit', 'imports', 'pending'];
@@ -125,6 +125,7 @@ export class Database {
     return this.transaction(STORES, 'readonly', async s => Object.fromEntries(await Promise.all(STORES.map(async n => [n, await request(s[n].getAll())]))));
   }
   async saveRecord(data, { expectedRevision = null, draftId = null, sourceTime = data.time, duplicateConfirmed = false, mappingConfirmed = false, clockDate = null } = {}) {
+    if (expectedRevision === null) data = { ...data, sourceCode: '', productCode: '' };
     assertRecord(data);
     return this.transaction(['records', 'audit', 'settings', 'masters'], 'readwrite', async s => {
       const previous = await request(s.records.get(data.id));
@@ -148,10 +149,10 @@ export class Database {
       if (data.handoverId && data.handoverId !== active.handoverId) throw Error('Sesi draft sudah berubah. Periksa handover aktif.');
       if (!duplicateConfirmed && potentialDuplicates(data, await request(s.records.getAll())).length) throw Error('Potensi duplikat baru ditemukan. Kirim lagi untuk meninjau dan mengonfirmasi.');
       const masters = await request(s.masters.getAll());
-      for (const [kind, keys] of [['stock', ['stockpile', 'pileId']], ['product', ['productCode', 'dome', 'destination']]]) {
+      for (const [kind, keys] of [['stock', ['stockpile', 'pileId']], ['product', ['dome', 'destination']]]) {
         if (previous && keys.every(k => previous[k] === data[k])) continue;
         const mapping = masters.find(m => m.active !== false && m.kind === kind && keys.every(k => m[k] === data[k]));
-        if (!mapping || (kind === 'product' && resolveProduct(data.dome, data.destination, masters)?.productCode !== data.productCode)) throw Error('Mapping material belum disahkan atau bertentangan. Pilih pasangan aktif dan mapping Product/Dome/Destination yang unik.');
+        if (!mapping || (kind === 'product' && !resolveProduct(data.dome, data.destination, masters))) throw Error('Mapping material belum disahkan atau bertentangan. Pilih pasangan aktif dan mapping Product Code / Destination yang unik.');
       }
       const stamp = now();
       const record = { ...clone(data), origin: 'local', createdAt: previous?.createdAt || stamp,
@@ -277,16 +278,24 @@ export class Database {
   }
   // One master transaction; no transaction snapshots or import sources are edited.
   async saveStockPair(input, expected = null, remove = false) {
+    input = { ...input, ...Object.fromEntries(['stockpile','pileId'].map(k => [k, typeof input[k] === 'string' ? input[k].trim() : input[k]])) };
     const errors = mappingErrors({ ...input, kind: 'stock' });
-    if (!remove) for (const k of ['dome', 'destination']) { const error = textError(input[k], k); if (error) errors.push(error); }
+    if (!remove) for (const k of ['dome', 'destination']) { const error = textError(input[k], k === 'dome' ? 'Product Code' : k); if (error) errors.push(error); }
     if (errors.length) throw Error(errors.join(' '));
     return this.transaction(['masters', 'audit', 'cache'], 'readwrite', async s => {
       const masters = await request(s.masters.getAll());
       const before = expected ? masters.find(m => m.id === expected.id) : null;
       if (expected && (!before || canonical(before) !== canonical(expected) || before.active === false)) throw Error('Mapping berubah di tab lain. Buka ulang daftar.');
+      if (!remove) {
+        const fields = stockIdentityErrors(input, before);
+        if (Object.keys(fields).length) throw Object.assign(Error(Object.values(fields).join(' ')), { fields });
+      }
       const oldKey = expected ? pairKey(expected) : null, newKey = pairKey(input);
       const peers = masters.filter(m => m.kind === 'stock' && m.active !== false && pairKey(m) === oldKey);
-      if (!remove && masters.some(m => m.kind === 'stock' && m.active !== false && pairKey(m) === newKey && !peers.some(p => p.id === m.id))) throw Error('Pasangan Stockpile / Pile ID duplikat.');
+      if (!remove && masters.some(m => m.kind === 'stock' && m.active !== false && pairKey(m) === newKey && !peers.some(p => p.id === m.id))) {
+        const message = 'Pasangan Stockpile / Pile ID sudah tersedia dalam daftar.';
+        throw Object.assign(Error(message), { fields: { pileId: message } });
+      }
       if (!remove) {
         const cache = await request(s.cache.get('destinations'));
         if (!cache?.values.some(d => d.destination_name === input.destination && d.is_active !== false)) throw Error('Pilih Destination dari cache master Google. Sync Destination di Setup bila belum tersedia.');
@@ -301,6 +310,39 @@ export class Database {
       value.key = mappingKey(value);
       s.masters.put(value);
       s.audit.add({id:uid(),action:'master',at:stamp,before:before || null,after:value});
+      return value;
+    });
+  }
+  async saveProductPair(input, expected = null) {
+    input = {kind:'product',productCode:'',dome:input.dome,destination:input.destination};
+    const errors = mappingErrors(input);
+    if (errors.length) throw Error(errors.join(' '));
+    return this.transaction(['masters','audit','cache','records'], 'readwrite', async s => {
+      const masters = await request(s.masters.getAll());
+      const before = expected ? masters.find(m => m.id === expected.id) : null;
+      if (expected && (!before || before.kind !== 'product' || before.active === false || canonical(before) !== canonical(expected))) throw Error('Mapping berubah di tab lain. Buka ulang daftar.');
+      const peers = before ? masters.filter(m => m.kind === 'product' && m.active !== false && productPairKey(m) === productPairKey(before)) : [];
+      if (masters.some(m => m.kind === 'product' && m.active !== false && productPairKey(m) === productPairKey(input) && !peers.some(p => p.id === m.id))) throw Error('Pasangan Product Code / Destination sudah tersedia.');
+      const cache = await request(s.cache.get('destinations'));
+      if (!cache?.values.some(d => d.is_active !== false && d.destination_name === input.destination)) throw Error('Pilih Destination dari cache master Google. Sync Destination di Setup bila belum tersedia.');
+      const stamp = now();
+      const write = (previous,after) => {
+        s.masters.put(after);
+        s.audit.add({id:uid(),action:'master',at:stamp,before:previous,after});
+      };
+      for (const peer of peers) if (peer.id !== before.id) write(peer,{...peer,active:false,updatedAt:stamp});
+      const value = {...before,...input,id:before?.id || uid(),active:true,origin:'local',createdAt:before?.createdAt || stamp,updatedAt:stamp};
+      value.key = mappingKey(value); write(before,value);
+      // Editing this master explicitly updates its stock relations, including
+      // relations inherited from handover. Transaction snapshots remain frozen.
+      if (before) {
+        const records = await request(s.records.getAll());
+        const last = (await request(s.settings.get('lastHandover')))?.value;
+        for (const stock of masters.filter(m => m.kind === 'stock' && m.active !== false)) {
+          const target = stockTarget(stock,masters,records,last);
+          if (target && productPairKey(target) === productPairKey(before)) write(stock,{...stock,dome:value.dome,destination:value.destination,updatedAt:stamp});
+        }
+      }
       return value;
     });
   }

@@ -3,10 +3,11 @@ import { assertRecord } from './validation.js';
 export function exportLine(record) {
   assertRecord(record, { historical: true });
   return [String(excelSerial(record.operationDate)) + (record.ritaseNumber ? '-' + String(record.ritaseNumber).padStart(3, '0') : ''), record.dtNo, '',
-    record.stockpile, record.pileId, '', record.productCode, record.dome,
+    record.stockpile, record.pileId, '', '', record.dome,
     record.destination, record.time.slice(0, 5), record.scale].join('\t');
 }
 export const exportWA = records => records.filter(r => !r.deletedAt).map(exportLine).join('\n');
+// Duplicate identity follows current operational fields; legacy columns 3/7 are audit only.
 export const fingerprint = record => exportLine({ ...record, ritaseNumber: undefined }) + '\t' + record.time;
 export function potentialDuplicates(record, records) {
   const key = fingerprint(record);

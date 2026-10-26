@@ -10,9 +10,9 @@
   assert(document.querySelectorAll('#save-entry').length === 1 && $('#save-entry').form === $('#entry-form'), 'Single original submit association');
   const stock = $('#entry-form [data-mapping=stock]'), product = $('#entry-form [data-mapping=product]');
   const a = stock.getBoundingClientRect(), b = product.getBoundingClientRect(), dt = $('#entry-form [name=dtNo]').getBoundingClientRect();
-  assert(Math.abs(a.top - b.top) < 1 && a.right < b.left && Math.abs(a.width-b.width) < 1, 'Mappings must align in equal columns');
+  assert(Math.abs(a.bottom - b.bottom) < 1 && a.right < b.left && Math.abs(a.width-b.width) < 1, 'Mappings must align in equal columns');
   assert(dt.width > a.width + b.width, 'DT must occupy full row');
-  assert(product.closest('label').textContent.startsWith('Dome / Destination'), 'New visual product label');
+  assert(product.closest('label').textContent.startsWith('Product Code / Destination'), 'New visual product label');
   const oldText = stock.textContent;stock.textContent = 'LONG SYNTHETIC MAPPING '.repeat(15);
   assert(document.documentElement.scrollWidth <= innerWidth, 'Long pair label causes overflow');
   stock.textContent = oldText;
@@ -23,7 +23,7 @@
   assert(after.bottom < nav.top && nav.top-after.bottom < 24 && after.left >= 0 && after.right <= innerWidth, 'Save/nav geometry');
   assert(document.documentElement.scrollWidth <= innerWidth, 'Operational horizontal overflow');
   for (const view of ['setup','report','operasional']) {await navigate(view);assert(visible() === (view==='operasional'), 'Save visibility on '+view);}
-  for (const id of ['correction-dialog','confirm-dialog','audit-dialog','checker-dialog','stock-dialog']) {
+  for (const id of ['correction-dialog','confirm-dialog','audit-dialog','checker-dialog','stock-dialog','product-dialog']) {
     const dialog = $('#'+id);dialog.showModal();assert(!visible(),'Save visible under '+id);dialog.close();await wait(20);assert(visible(),'Save not restored after '+id);
   }
   $('#confirm-dialog').showModal();await navigate('report');$('#confirm-dialog').close();await wait(20);assert(!visible(),'Dialog close resurrects save on Report');
