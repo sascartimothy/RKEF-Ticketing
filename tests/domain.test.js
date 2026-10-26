@@ -10,18 +10,20 @@ import { validateBackup, STORES } from '../js/database.js';
 const columns = ['46315','SAP_1014','6','TS_13','L20_S71','','5','SCZ-1189','ZHN LINE 25','06.59','BDM'];
 const line = columns.join('\t');
 const record = { ...parseWA(line)[0].record, id: 'one', checker: 'TEST CHECKER', shift: 'Day', origin: 'local' };
-test('existing Report TSV retained, empty sixth column, and read-only round trip', () => {
-  assert.equal(exportLine(record), line);
+test('Report TSV blanks Source/reserved columns and preserves imported audit metadata', () => {
+  assert.equal(exportLine(record), columns.map((v,i)=>i===2?'':v).join('\t'));
   assert.equal(exportLine(record).split('\t').length, 11);
   assert.equal(parseWA(exportLine(record))[0].errors.length, 0);
-  assert.deepEqual(parseWA(exportLine(record))[0].record, parseWA(line)[0].record);
-  assert.equal(exportWA([record, {...record, deletedAt:'now'}]), line);
+  assert.deepEqual(parseWA(exportLine(record))[0].record, {...parseWA(line)[0].record,sourceCode:''});
+  assert.equal(parseWA(line)[0].record.sourceCode,'6');
+  assert.equal(exportWA([record, {...record, deletedAt:'now'}]), columns.map((v,i)=>i===2?'':v).join('\t'));
 });
 test('legacy numbered 10-column mapping is explicit and retains raw source', () => {
   const legacy = ['46315-001', ...columns.slice(1,5), ...columns.slice(6)].join('\t');
   const p = parseWA(legacy)[0];
   assert.equal(p.raw, legacy); assert.equal(p.legacy, true); assert.equal(p.errors.length, 0); assert.ok(p.warnings.length);
-  assert.equal(exportLine(p.record), line.replace('46315', '46315-001'));
+  assert.equal(exportLine(p.record), columns.map((v,i)=>i===0?'46315-001':i===2?'':v).join('\t'));
+  assert.equal(p.record.sourceCode,'6');
 });
 test('bad column count, missing empty TAB, bad time and serial are rejected without editing', () => {
   for (const malformed of [line.replace('\t\t','\t'), line.replace('06.59','52.00,0'), line.replace('46315','46315-00x'), line.replace('46315','60'), line.replace('46315','9999999'), line+'\t', line.replace('SAP_1014',' SAP_1014'), columns.map((v,i)=>i===5?'x':v).join('\t')]) {
@@ -61,7 +63,7 @@ test('mapping conflicts flagged without replacing local entries', () => {
   assert.equal(deriveMappings([record],masters).length,0);
   const altered={...record,sourceCode:'99',productCode:'99'};
   const derived=deriveMappings([altered],masters);
-  assert.equal(derived.length,2); assert.ok(derived.every(m=>m.conflicts.length===1));
+  assert.equal(derived.length,2); assert.equal(derived[0].conflicts.length,0); assert.equal(derived[1].conflicts.length,1);
   assert.equal(masters[0].sourceCode,'6');
   assert.equal(conflicts(derived[0],masters.map(m=>({...m,active:false}))).length,0);
 });

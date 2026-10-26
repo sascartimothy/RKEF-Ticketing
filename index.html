@@ -69,15 +69,17 @@
         <article class="card entry-card"><div class="card-heading"><h2 id="entry-title">Ritase baru</h2></div>
           <div id="entry-context" class="context-box"></div>
           <form id="entry-form" novalidate><fieldset id="entry-fields"><label class="large-label">Nomor Dump Truck<input name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
-<label>Stockpile / Pile ID<select data-mapping="stock" required></select></label>
-<label>Product / Dome / Destination<select data-mapping="product" required></select></label>
+<div class="entry-mappings">
+<label>Stockpile / Pile ID<button type="button" id="choose-stock" data-mapping="stock" class="secondary full" aria-haspopup="dialog">Pilih...</button></label>
+<label>Dome / Destination<select data-mapping="product" required></select></label>
+</div>
 <input type="hidden" name="stockpile"><input type="hidden" name="pileId"><input type="hidden" name="sourceCode"><input type="hidden" name="productCode"><input type="hidden" name="dome"><input type="hidden" name="destination">
 <label>Waktu Transaksi (HH.mm.ss)<input name="time" inputmode="numeric" autocomplete="off" placeholder="07.20.00" maxlength="8" required></label>
 <p class="hint">Waktu otomatis berjalan. Ketik angka untuk mengubah; kosongkan untuk kembali otomatis.</p>
 <label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label>
             <button id="cancel-draft" type="button" class="button-quiet">Batalkan input</button><span id="source-time" class="hint"></span><p id="draft-state" class="hint" role="status"></p>
             <div id="entry-error" class="alert danger" role="alert" hidden></div>
-            <button id="save-entry" class="primary full save-button" type="submit">Simpan ritase</button>
+            <div class="entry-save-bar"><button id="save-entry" class="primary full save-button" type="submit">Simpan ritase</button></div>
           </fieldset></form>
         </article></div>
         <aside class="stack"><article class="card"><div class="card-heading"><h2>Riwayat Ritase</h2><span id="history-count" class="number-badge">0</span></div>
@@ -121,6 +123,7 @@
 <input type="hidden" name="stockpile"><input type="hidden" name="pileId"><input type="hidden" name="sourceCode"><input type="hidden" name="productCode"><input type="hidden" name="dome"><input type="hidden" name="destination">
 <label>Waktu Transaksi (HH.mm.ss)<input name="time" inputmode="numeric" autocomplete="off" placeholder="07.20.00" maxlength="8" required></label>
 <label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label><div id="correction-error" class="alert danger" role="alert" hidden></div><div class="dialog-actions"><button type="button" id="cancel-correction" class="secondary">Batal</button><button type="submit" class="primary">Simpan koreksi</button></div></fieldset></form></dialog>
+  <dialog id="stock-dialog" aria-labelledby="stock-title"><h2 id="stock-title">Pilih Stockpile / Pile ID</h2><div id="stock-body"></div><div id="stock-error" class="alert danger" role="alert" hidden></div><div id="stock-actions" class="dialog-actions"></div></dialog>
   <dialog id="audit-dialog"><h2>Jejak transaksi</h2><div id="audit-content"></div><form method="dialog"><button class="secondary">Tutup</button></form></dialog>
   <dialog id="checker-dialog" aria-labelledby="checker-title"><h2 id="checker-title">Pilih Checker</h2>
     <div id="checker-body"></div><p id="checker-error" class="alert danger" role="status" hidden></p>

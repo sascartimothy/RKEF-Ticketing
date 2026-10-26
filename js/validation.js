@@ -17,7 +17,9 @@ export function validateRecord(record, { historical = false, allowUnknownChecker
   try { calendarDate(record.operationDate); } catch (e) { errors.push(e.message); }
   for (const field of FIELDS) {
     if (historical && ['checker', 'shift'].includes(field)) continue;
+    if (field === 'sourceCode' && (record[field] === '' || record[field] === undefined)) continue;
     if (allowUnknownChecker && field === 'checker' && record.checker === '' && record.checkerConfirmed === false) continue;
+    if (field === 'productCode' && !record[field]) { errors.push('Product Code belum dapat ditentukan secara unik. Periksa mapping Product/Dome/Destination dari handover yang disahkan. Pasangan tetap tersimpan.'); continue; }
     const error = textError(record[field], field, field === 'checker' ? 4100 : 100);
     if (error) errors.push(error);
   }

@@ -1,5 +1,27 @@
 # Hasil pengujian lokal
 
+## Layout Operasional v1.1.2 (26 Oktober 2026)
+
+Perubahan UI lokal: DT penuh; dropdown Stockpile / Pile ID dan Dome / Destination memakai dua kolom `minmax(0,1fr)` dengan label membungkus dan select dibatasi lebar container. Waktu dan Note tetap penuh. Product hidden/mapping tidak dihapus. Tombol submit existing tetap di dalam form/fieldset, dibungkus bar fixed di atas navbar; tidak ada handler simpan kedua. View hidden menyembunyikan tombol saat navigasi; CSS `body:has(dialog[open])` menyembunyikan bar seluruhnya selama dialog. Deteksi penyusutan viewport pada fokus input memakai resize/VisualViewport tanpa interval/tick tambahan. Keyboard menyembunyikan bar sementara; safe area dan padding scroll bawah diperhitungkan.
+
+Hasil lokal dengan portable Node v24.16.0/npm 11.13.0, profil Chromium baru, server allowlist root produksi, data sintetis dan seluruh request eksternal diblokir:
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `npm.cmd test` | PASS 49 tes Node; Apps Script contract mocks; static root/public/offline inventories dan dokumentasi |
+| `npm.cmd run test:browser` | PASS regresi lengkap IndexedDB, handover/reset total, penomoran Opsi B, koreksi/audit, multi-Checker, Report/WA dan offline/reload |
+| Layout 360px / 1280px | PASS DT penuh, dropdown sejajar/lebar seimbang, opsi panjang tanpa overflow; bar fixed tidak bergeser saat scroll, berada di atas navbar dan dalam viewport |
+| Navigasi/dialog | PASS Setup/Report tersembunyi, kembali Operasional tampil; correction/confirm/audit/checker dialog menyembunyikan bar; tutup dialog di Report tidak memunculkannya |
+| Tombol existing | PASS satu tombol dan relasi form; inherited fieldset disabled, loading aria-busy, klik dua kali menghasilkan tepat satu transaksi; Product tersimpan; sukses reset form |
+| Keyboard sintetis | PASS fokus Note + viewport 800 → 450 menyembunyikan bar; pulih pada 800; bukan IME Android fisik |
+| `npm.cmd run check:docs` / `git diff --check` | PASS |
+
+Tes tambahan [operational-layout-browser.js](../../tests/operational-layout-browser.js) dijalankan runner browser pada kedua lebar. Screenshot ignored di `private-data/qa/`: `operasional-360.png`, `operasional-viewport-360.png`, `operasional-desktop.png`, `correction-360.png`. Pemeriksaan visual lokal melengkapi assertion geometri.
+
+Versi config/paket **1.1.2**, cache shell `rkef-shell-v1.1.2-operational-layout`. Perubahan runtime terbatas HTML/CSS/navigasi UI dan metadata/cache. `js/operational-ui.js`, database/schema, validasi, waktu, master, handover, Checker, Report/exporter dan Apps Script tidak diubah. Storage identity, endpoint dan URL Pages tetap. Cache master dan transaksi IndexedDB tidak dihapus; pembersihan cache shell lama saat aktivasi worker mengikuti mekanisme existing. Tidak ada Git mutation atau deployment.
+
+**NOT VERIFIED:** keyboard/safe area/rotasi dan native dropdown pada HP Android/Chrome fisik, instalasi/update PWA pada HP, integrasi Google anonim live serta paste WA/Excel aktual. Emulasi viewport desktop tidak memenuhi gate tersebut.
+
 ## Reset TOTAL operasional v1.1.1 (26 Oktober 2026)
 
 Keputusan final menggantikan seluruh kontrak reset lama di catatan historis berikut. Akar error OD-06: reset lama menyisakan histori impor/receipt, mapping dan record sesi/timbangan lain; validasi identitas bisnis tetap membaca data tersebut. Setup juga memproses ulang WA lama.
@@ -348,3 +370,26 @@ Pengujian lokal:
 Snapshot/counter/IndexedDB schema tetap. Cache version lama dibaca untuk offline, tidak dihapus; Sync memberi revision dan listVersion terbaru. Pending menggunakan store existing. Tidak ada branch/staging/commit/push/deployment atau penulisan Sheets live.
 
 Semantik expected_version telah dikonfirmasi owner. POST Google, error iframe live, Android/Chrome nyata dan konflik dua HP: **NOT VERIFIED**. Deployment owner sudah dilaporkan, tetapi file lokal bukan bukti redeploy. [Kontrak API](../development/CHECKER_API.md) menjelaskan batas ini.
+
+## Popup Stockpile / Pile ID v1.1.2 — 26 Oktober 2026
+
+Implementasi lokal menambahkan popup pemilihan satu ketukan dan mode Edit Daftar (Add/Edit empat field, Hapus berkonfirmasi, Cancel, Kembali). Seluruh mutasi master/audit atomik di IndexedDB existing; Source Code tidak diperlukan. Product Code hanya dari mapping Dome/Destination unik. Pasangan belum lengkap dapat tersimpan tetapi ritase diblokir. Target legacy dibaca dari laporan handover terakhir yang disahkan, termasuk jika ID master dipakai ulang lintas impor; target eksplisit lokal memiliki prioritas. Override target manual tidak ditimpa rerender biasa.
+
+Hasil pengujian lokal, data sintetis dan profil Chromium terisolasi:
+
+| Pemeriksaan | Hasil / bukti |
+|---|---|
+| Node/domain + kontrak bridge mock | PASS; parser lama/baru, Source opsional, resolusi target terbaru/ambigu, Product unik dan TSV 11 kolom |
+| Pemilihan popup | PASS; nama hanya Stockpile/Pile, satu ketukan menutup, autofill, Edit Daftar di bawah, Simpan fixed tersembunyi |
+| Add/Edit/Hapus | PASS; Pile baru tanpa histori/Source, empat field, seluruh field diedit, identitas lama tidak aktif, duplikat ditolak, Cancel, konfirmasi soft delete dan pilihan aktif dibersihkan |
+| Integritas | PASS; edit stale ditolak; kegagalan setelah penulisan master/audit membatalkan transaksi seluruhnya; snapshot histori identik sebelum/sesudah Edit/Hapus |
+| Product dan ritase baru | PASS; Product unik 52 menghasilkan ritase dari Pile baru; Product hilang/ambigu memblokir ritase tanpa menghapus pasangan; override manual bertahan setelah render |
+| Export/import | PASS; 11 kolom, posisi 3/6 benar-benar kosong, posisi 7 tetap Product; Source lama masih dibaca dan raw source dipertahankan |
+| Persistensi/offline | PASS; reload nyata saat network offline mempertahankan mapping aktif, nonaktif dan histori; app shell/module baru tercache |
+| Reset total | PASS; mapping lokal dihapus dan hanya cache Checker/Destination dipertahankan; koneksi stale tetap ditahan |
+| Regresi | PASS; Opsi B, koreksi, clock AUTO/MANUAL, multi-Checker, Report 605 ritase, reset/reload dan worker preview → dev |
+| Layout | PASS; 360px/1280px, dua kolom, popup pilih/edit/add tanpa overflow, seluruh modal menyembunyikan fixed save; screenshot diperiksa secara visual |
+
+Perintah verifikasi: `npm.cmd test`, `npm.cmd run test:browser`, `npm.cmd run check:docs`, dan `git diff --check`. Screenshot lokal sintetis berada di `private-data/qa/stock-{select,manage,add}-{360,1280}.png` (ignored, bukan asset publik). Pengujian browser memblokir seluruh request eksternal; tidak menulis live Sheets. Android/Chrome HP, keyboard Android, tempel WA/Excel aktual dan integrasi Google live tetap **NOT VERIFIED**.
+
+File implementasi tugas: `index.html`, `styles.css`, `js/stock-ui.js`, `js/operational-ui.js`, `js/master-data.js`, `js/database.js`, `js/validation.js`, `js/wa-exporter.js`, `js/state.js`, `js/app.js`, `sw.js`, `scripts/public-files.cjs`. Pengujian: `tests/stock-popup-browser.js`, `tests/stock-mapping.test.js`, `tests/browser-suite.js`, `tests/domain.test.js`, `tests/live-clock-browser.js`, `tests/operational-layout-browser.js`, `scripts/browser-test.cjs`. Dokumentasi: `AGENTS.md`, `README.md`, spesifikasi operasional dan dokumen ini. Perubahan lokal yang sudah ada saat tugas dimulai dipertahankan. Versi tetap v1.1.2; database/schema tetap; tidak mengubah Apps Script, Google, Git atau deployment.

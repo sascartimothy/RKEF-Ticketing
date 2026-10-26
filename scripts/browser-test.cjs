@@ -109,6 +109,12 @@ async function ready() {
     catch(error) { console.error(await evaluate("JSON.stringify({toast:document.querySelector('#toast')?.textContent,confirm:document.querySelector('#confirm-dialog')?.textContent,preview:document.querySelector('#import-preview')?.textContent})"));throw error; }
     for(const line of result)console.log(line);
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/checkers-browser.js'),'utf8')));
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/stock-popup-browser.js'),'utf8')));
+    await cdp('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
+    await cdp('Page.reload',{});await pause(400);await ready();
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/stock-popup-browser.js'),'utf8')));
+    await cdp('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
+    await cdp('Page.reload',{});await pause(400);await ready();
     await evaluate(`(async()=>{
       const {Database}=await import('./js/database.js');const db=await Database.open();
       sessionStorage.setItem('checkerPendingBaseline',JSON.stringify(await db.backup()));
@@ -149,6 +155,13 @@ async function ready() {
       await cdp('Page.reload',{});await pause(500);await ready();
     }
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/report-browser.js'),'utf8')));
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/operational-layout-browser.js'),'utf8')));
+    // Simulate a resized viewport with a focused field; this is not a physical IME test.
+    await evaluate("document.querySelector('#entry-form [name=note]').focus()");
+    await cdp('Emulation.setDeviceMetricsOverride',{width:360,height:450,deviceScaleFactor:1,mobile:true});await pause(100);
+    console.log(await evaluate("if(document.querySelector('#save-entry').checkVisibility())throw Error('Save must hide for keyboard-sized viewport');'PASS simulated keyboard viewport hides fixed save'"));
+    await cdp('Emulation.setDeviceMetricsOverride',{width:360,height:800,deviceScaleFactor:1,mobile:true});await pause(100);
+    console.log(await evaluate("if(!document.querySelector('#save-entry').checkVisibility())throw Error('Save did not return after viewport restored');document.activeElement.blur();'PASS fixed save returns after simulated keyboard closes'"));
     const qa=path.join(root,'private-data','qa');fs.mkdirSync(qa,{recursive:true});
     await evaluate("location.hash='report';document.querySelector('#report-preview').open=true;document.querySelector('#toast').hidden=true;window.scrollTo(0,0)");await pause(200);
     console.log(await evaluate("if(document.documentElement.scrollWidth>360)throw Error('Report overflow at 360px');'PASS Report no horizontal overflow at 360px'"));
@@ -168,6 +181,18 @@ async function ready() {
     await evaluate("location.hash='operasional'");await pause(200);
     await evaluate("document.querySelector('#toast').hidden=true;window.scrollTo(0,0)");
     const operationLayout=await cdp('Page.getLayoutMetrics');
+    const captureStock = async width => {
+      await evaluate("document.querySelector('#choose-stock').click()");
+      for(const mode of ['select','manage','add']) {
+        if(mode==='manage')await evaluate("document.querySelector('#stock-manage').click()");
+        if(mode==='add')await evaluate("document.querySelector('#stock-add').click();document.activeElement.blur()");
+        console.log(await evaluate(`(()=>{const d=document.querySelector('#stock-dialog'),r=d.getBoundingClientRect();if(!d.open||r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight||document.querySelector('#stock-body').scrollWidth>document.querySelector('#stock-body').clientWidth||document.querySelector('#save-entry').checkVisibility())throw Error('Stock modal layout overflow');return 'PASS stock ${mode} modal geometry and fixed-save hiding at ${width}px';})()`));
+        fs.writeFileSync(path.join(qa,`stock-${mode}-${width}.png`),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+      }
+      await evaluate("document.querySelector('#stock-cancel').click();document.querySelector('#stock-back').click();document.querySelector('#stock-close').click();document.activeElement.blur()");
+    };
+    await captureStock(360);
+    fs.writeFileSync(path.join(qa,'operasional-viewport-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
     fs.writeFileSync(path.join(qa,'operasional-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:360,height:operationLayout.cssContentSize.height,scale:1}})).data,'base64'));
     await evaluate("document.querySelector('#history [data-edit]').click()");await pause(100);
     fs.writeFileSync(path.join(qa,'correction-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
@@ -191,6 +216,9 @@ async function ready() {
     })()`);console.log(offline);
     await cdp('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
     await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/operational-layout-browser.js'),'utf8')));
+    await captureStock(1280);
+    fs.writeFileSync(path.join(qa,'operasional-desktop.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
     await evaluate("location.hash='setup'");await pause(200);
     console.log(await evaluate(`(()=>{const cards=[...document.querySelectorAll('#view-setup article')];if(document.documentElement.scrollWidth>1280)throw Error('Setup overflow desktop');for(let i=1;i<cards.length;i++)if(cards[i].getBoundingClientRect().top<cards[i-1].getBoundingClientRect().bottom)throw Error('Setup not vertical desktop');return 'PASS Setup vertical order and no horizontal overflow at 1280px';})()`));
     const desktopLayout=await cdp('Page.getLayoutMetrics');

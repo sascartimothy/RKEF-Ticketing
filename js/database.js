@@ -3,7 +3,7 @@ import { uid, now, clone } from './state.js';
 import { assertRecord, destinationName, textError } from './validation.js';
 import { calendarDate, validTime, excelSerial, normalizeTime, timeOrderKey, timePrecision } from './time-date.js';
 import { validateList } from './apps-script-api.js';
-import { mappingErrors, mappingFromRecord, mappingKey, conflicts, deriveMappings } from './master-data.js';
+import { mappingErrors, mappingFromRecord, mappingKey, conflicts, deriveMappings, pairKey, resolveProduct } from './master-data.js';
 import { inspectHandover, sourceDigest } from './wa-parser.js';
 import { potentialDuplicates } from './wa-exporter.js';
 export const STORES = ['records', 'masters', 'settings', 'cache', 'audit', 'imports', 'pending'];
@@ -148,10 +148,10 @@ export class Database {
       if (data.handoverId && data.handoverId !== active.handoverId) throw Error('Sesi draft sudah berubah. Periksa handover aktif.');
       if (!duplicateConfirmed && potentialDuplicates(data, await request(s.records.getAll())).length) throw Error('Potensi duplikat baru ditemukan. Kirim lagi untuk meninjau dan mengonfirmasi.');
       const masters = await request(s.masters.getAll());
-      for (const [kind, keys] of [['stock', ['stockpile', 'pileId', 'sourceCode']], ['product', ['productCode', 'dome', 'destination']]]) {
+      for (const [kind, keys] of [['stock', ['stockpile', 'pileId']], ['product', ['productCode', 'dome', 'destination']]]) {
         if (previous && keys.every(k => previous[k] === data[k])) continue;
         const mapping = masters.find(m => m.active !== false && m.kind === kind && keys.every(k => m[k] === data[k]));
-        if (!mapping || conflicts(mapping, masters).length) throw Error('Mapping material belum disahkan atau bertentangan. Periksa handover; kebijakan editing lokal belum disahkan.');
+        if (!mapping || (kind === 'product' && resolveProduct(data.dome, data.destination, masters)?.productCode !== data.productCode)) throw Error('Mapping material belum disahkan atau bertentangan. Pilih pasangan aktif dan mapping Product/Dome/Destination yang unik.');
       }
       const stamp = now();
       const record = { ...clone(data), origin: 'local', createdAt: previous?.createdAt || stamp,
@@ -273,6 +273,35 @@ export class Database {
       s.settings.put({ id: 'lastHandover', value: digest });
       s.audit.add({ id: uid(), action: previous ? 'handover-activate' : 'import', importId: digest, count: rows.length, at: stamp, decisions, supersededMasterIds: superseded.map(m => m.id), ...(previous ? { before: activeSession, after: handover.session } : {}) });
       return { already: !!previous, count: rows.length, activated: !!handover };
+    });
+  }
+  // One master transaction; no transaction snapshots or import sources are edited.
+  async saveStockPair(input, expected = null, remove = false) {
+    const errors = mappingErrors({ ...input, kind: 'stock' });
+    if (!remove) for (const k of ['dome', 'destination']) { const error = textError(input[k], k); if (error) errors.push(error); }
+    if (errors.length) throw Error(errors.join(' '));
+    return this.transaction(['masters', 'audit', 'cache'], 'readwrite', async s => {
+      const masters = await request(s.masters.getAll());
+      const before = expected ? masters.find(m => m.id === expected.id) : null;
+      if (expected && (!before || canonical(before) !== canonical(expected) || before.active === false)) throw Error('Mapping berubah di tab lain. Buka ulang daftar.');
+      const oldKey = expected ? pairKey(expected) : null, newKey = pairKey(input);
+      const peers = masters.filter(m => m.kind === 'stock' && m.active !== false && pairKey(m) === oldKey);
+      if (!remove && masters.some(m => m.kind === 'stock' && m.active !== false && pairKey(m) === newKey && !peers.some(p => p.id === m.id))) throw Error('Pasangan Stockpile / Pile ID duplikat.');
+      if (!remove) {
+        const cache = await request(s.cache.get('destinations'));
+        if (!cache?.values.some(d => d.destination_name === input.destination && d.is_active !== false)) throw Error('Pilih Destination dari cache master Google. Sync Destination di Setup bila belum tersedia.');
+      }
+      const stamp = now();
+      for (const m of peers) {
+        const after = {...m,active:false,updatedAt:stamp}; s.masters.put(after);
+        s.audit.add({id:uid(),action:'master',at:stamp,before:m,after});
+      }
+      if (remove) return null;
+      const value = {kind:'stock',id:before?.id || uid(),stockpile:input.stockpile,pileId:input.pileId,sourceCode:'',dome:input.dome,destination:input.destination,origin:'local',active:true,createdAt:before?.createdAt || stamp,updatedAt:stamp};
+      value.key = mappingKey(value);
+      s.masters.put(value);
+      s.audit.add({id:uid(),action:'master',at:stamp,before:before || null,after:value});
+      return value;
     });
   }
   async saveMaster(master) {

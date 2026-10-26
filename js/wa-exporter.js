@@ -2,7 +2,7 @@ import { excelSerial, calendarDate, timeOrderKey } from './time-date.js';
 import { assertRecord } from './validation.js';
 export function exportLine(record) {
   assertRecord(record, { historical: true });
-  return [String(excelSerial(record.operationDate)) + (record.ritaseNumber ? '-' + String(record.ritaseNumber).padStart(3, '0') : ''), record.dtNo, record.sourceCode,
+  return [String(excelSerial(record.operationDate)) + (record.ritaseNumber ? '-' + String(record.ritaseNumber).padStart(3, '0') : ''), record.dtNo, '',
     record.stockpile, record.pileId, '', record.productCode, record.dome,
     record.destination, record.time.slice(0, 5), record.scale].join('\t');
 }

@@ -35,6 +35,7 @@ async function load({ restoreDraft = false, fillSession = false } = {}) {
   }
   state.storageGeneration = generation;
   state.records = snapshot.records; state.masters = snapshot.masters;
+  state.lastHandover = snapshot.settings.find(s => s.id === 'lastHandover')?.value || null;
   state.session = snapshot.settings.find(s => s.id === 'session')?.value || null;
   state.checkerPending = snapshot.pending.find(p => p.id === 'checker') || null;
   state.checkerCache = snapshot.cache.find(c => c.id === 'checkers') || null;

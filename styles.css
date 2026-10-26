@@ -33,3 +33,20 @@
 #copy-report{flex:1}#view-report .button-row button{max-width:100%}
 
 #checker-dialog{max-height:90dvh;overflow:auto}#checker-body{max-height:60dvh;overflow:auto;overflow-wrap:anywhere}#checker-body .check-label{min-height:48px;align-items:center;font-size:14px}#checker-body .master-item span{flex:1;min-width:100px}#choose-checkers{text-align:left;overflow-wrap:anywhere}#checker-dialog .dialog-actions{position:sticky;bottom:-26px;background:white;padding:12px 0}
+
+/* Operational v1.1.2: one submit button stays inside its original fieldset. */
+:root{--nav-bottom:max(18px,env(safe-area-inset-bottom));--nav-height:63px;--save-gap:10px}
+.bottom-nav{bottom:var(--nav-bottom);height:var(--nav-height)}
+#view-operasional{animation:none;padding-bottom:80px}
+.entry-mappings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.entry-mappings label{min-width:0;display:flex;flex-direction:column;justify-content:space-between;overflow-wrap:anywhere}
+.entry-mappings select{min-width:0;width:100%;text-overflow:ellipsis;padding-inline:8px}
+.entry-save-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-bottom) + var(--nav-height) + var(--save-gap));width:calc(100% - 56px);max-width:1184px;padding:8px;background:#f1f5f6;border:1px solid var(--line);border-radius:14px;box-shadow:0 4px 20px #102c3a20;z-index:21}
+body:has(dialog[open]) .entry-save-bar,.keyboard-open .entry-save-bar{display:none}
+body:has(#view-operasional:not([hidden])) .toast{bottom:calc(var(--nav-bottom) + var(--nav-height) + var(--save-gap) + 84px)}
+#entry-form input,#entry-form select{scroll-margin-block:24px 180px}
+html{scroll-padding-bottom:190px}
+@media(max-width:800px){.entry-save-bar{width:calc(100% - 40px)}}
+@media(max-width:420px){:root{--nav-bottom:max(10px,env(safe-area-inset-bottom))}.entry-save-bar{width:calc(100% - 28px)}.entry-mappings{gap:10px}}
+#stock-dialog{max-height:90dvh;overflow:auto}#stock-body{max-height:62dvh;overflow:auto;overscroll-behavior:contain}#stock-actions{position:sticky;bottom:-26px;background:white;padding-top:14px;flex-wrap:wrap}#stock-actions button{flex:1}#stock-body .stock-choice{text-align:left;margin-bottom:8px;overflow-wrap:anywhere}#stock-body .master-item span{min-width:0;overflow-wrap:anywhere;flex:1}#choose-stock{text-align:left;min-height:48px;margin-top:6px;font-size:14px;overflow-wrap:anywhere;padding:11px 12px}
+#stock-actions #stock-add,#stock-actions #stock-back{flex-basis:100%}
