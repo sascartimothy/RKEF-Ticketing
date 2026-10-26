@@ -1,3 +1,4 @@
+import { initAppUpdate } from './app-update.js';
 import { renderCheckers } from './checker-ui.js';
 import { Database, validateBackup } from './database.js';
 import { DestinationBridge } from './apps-script-api.js';
@@ -63,13 +64,13 @@ async function storageInfo() {
   } catch { $('#storage-info').textContent = 'Informasi kapasitas tidak tersedia. Data tetap lokal di perangkat.'; }
 }
 async function pwa() {
+  initAppUpdate();
   if (!('serviceWorker' in navigator)) { $('#pwa-state').textContent = 'Service worker tidak tersedia di browser ini.'; return; }
-  try {
-    const registration = await navigator.serviceWorker.register(new URL('../sw.js', import.meta.url), { scope: new URL('../', import.meta.url).pathname });
-    const report = () => { $('#pwa-state').textContent = registration.active ? 'App shell offline siap pada perangkat ini.' : 'Menyiapkan app shell offline…'; };
-    report(); navigator.serviceWorker.addEventListener('controllerchange', report);
-    registration.addEventListener('updatefound', () => { registration.installing?.addEventListener('statechange', report); });
-  } catch (e) { $('#pwa-state').textContent = 'App shell offline belum siap: ' + e.message; }
+  const report = async () => {
+    const registration = await navigator.serviceWorker.getRegistration();
+    $('#pwa-state').textContent = registration?.active ? 'App shell offline siap pada perangkat ini.' : 'App shell offline belum siap; gunakan Update saat online untuk menyiapkannya.';
+  };
+  report().catch(() => {}); navigator.serviceWorker.addEventListener('controllerchange', () => report().catch(() => {}));
   let prompt;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); prompt = e; $('#install').hidden = false; });
   $('#install').onclick = async () => { if (prompt) { await prompt.prompt(); await prompt.userChoice; prompt = null; $('#install').hidden = true; } };

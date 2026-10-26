@@ -14,6 +14,7 @@
 | Development | [API Checker](development/CHECKER_API.md) | Schema Checker_Crew, mutasi anonim dan read-back |
 | Development | [Mapping material v1.1.2](development/MATERIAL_MAPPING.md) | Product Code kolom 8, popup mapping lokal dan kompatibilitas TSV |
 | Testing | [Hasil pengujian lokal](testing/LOCAL_TEST_RESULTS.md) | Bukti tes otomatis, QA, dan batas verifikasi |
+| Architecture | [Update PWA v1.1.2](architecture/PWA_UPDATE.md) | Identitas hash aset, Setup Update, lifecycle, cache, data dan multi-tab |
 | Architecture | [Struktur proyek](architecture/PROJECT_STRUCTURE.md) | Aplikasi root, dokumentasi, storage, dan batas hosting |
 
 [README repository](../README.md) tetap entry point GitHub. [AGENTS.md](../AGENTS.md) tetap instruksi coding agent di root. Tidak ada dokumen root lain yang perlu dipertahankan atau diduplikasi.

@@ -89,19 +89,19 @@ test('server refuses directory junctions and file symlinks at allowlisted paths'
   const root = fixture(t);
   const outside = path.join(root, 'private-data');
   fs.mkdirSync(outside);
-  fs.writeFileSync(path.join(outside, 'icon.svg'), 'PRIVATE_SENTINEL');
+  fs.writeFileSync(path.join(outside, 'icon-192.png'), 'PRIVATE_SENTINEL');
   fs.renameSync(path.join(root, 'assets'), path.join(root, 'original-assets'));
   fs.symlinkSync(outside, path.join(root, 'assets'), process.platform === 'win32' ? 'junction' : 'dir');
   for (const development of [true, false]) {
     const origin = await start(t, { root, development });
-    assert.equal((await fetch(origin + '/RKEF-Ticketing/assets/icon.svg')).status, 404);
+    assert.equal((await fetch(origin + '/RKEF-Ticketing/assets/icon-192.png')).status, 404);
     assert.equal((await fetch(origin + '/RKEF-Ticketing/index.html')).status, 200);
   }
   fs.unlinkSync(path.join(root, 'assets'));
   const fileLink = path.join(root, 'config.js');
   fs.unlinkSync(fileLink);
   // File symlinks may require Windows Developer Mode; junction coverage is mandatory.
-  try { fs.symlinkSync(path.join(outside, 'icon.svg'), fileLink, 'file'); }
+  try { fs.symlinkSync(path.join(outside, 'icon-192.png'), fileLink, 'file'); }
   catch (error) { if (error.code !== 'EPERM') throw error; t.diagnostic('File symlink unavailable (Windows EPERM); junction denial verified.'); return; }
   const origin = await start(t, { root });
   assert.equal((await fetch(origin + '/RKEF-Ticketing/config.js')).status, 404);

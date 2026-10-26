@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#102c3a">
   <meta name="description" content="Pencatatan ritase lokal dan handover WhatsApp RKEF.">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="./assets/icon-192.png">
+  <link rel="icon" href="./assets/icon-192.png?v=logo-r-1" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png?v=logo-r-1" sizes="192x192">
   <link rel="stylesheet" href="./styles.css">
   <title>RKEF Ticketing</title>
 </head>
@@ -51,12 +51,13 @@
             <p class="hint">Master Destination dan Checker dibagikan. Ritase dan pilihan Checker shift tetap lokal. Penambahan memerlukan koneksi dan read-back.</p>
           </article>
         <article class="card note-card" id="version-card">
-          <p id="app-version"></p>
+          <div class="app-version-row"><p id="app-version"></p><button id="update-app" class="secondary" type="button" aria-haspopup="dialog">↻ Update</button></div>
+          <p id="update-state" class="alert" role="status" aria-live="polite">Memeriksa pembaruan aplikasi...</p>
           <p id="pwa-state" class="hint" role="status"></p>
           <details><summary>Penyimpanan perangkat & diagnostik</summary>
             <p class="hint">Ritase tetap di perangkat ini. Pemulihan metadata lengkap setelah kehilangan perangkat tidak tersedia melalui antarmuka aplikasi.</p>
             <button id="persist-storage" class="button-quiet">Minta penyimpanan persisten</button>
-            <p id="storage-info" class="hint"></p>
+            <p id="storage-info" class="hint"></p><p id="build-info" class="hint"></p>
             <a href="./integration-test.html" target="_blank" rel="noopener">Buka alat uji integrasi ↗</a>
           </details>
         </article>
@@ -127,6 +128,18 @@
   </main>
   <nav class="bottom-nav" aria-label="Halaman utama"><a href="#setup" data-view="setup"><span aria-hidden="true">⚙</span>Setup</a><a href="#operasional" data-view="operasional"><span aria-hidden="true">＋</span>Operasional</a><a href="#report" data-view="report"><span aria-hidden="true">▤</span>Report</a></nav>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="update-dialog" aria-labelledby="update-title" aria-describedby="update-message"><form method="dialog">
+    <h2 id="update-title">Perbarui Aplikasi?</h2>
+    <p id="update-message">Versi terbaru RKEF-Ticketing tersedia.
+
+Aplikasi akan diperbarui dan dimuat ulang.
+
+PERINGATAN:
+Pekerjaan atau perubahan yang belum disimpan dapat hilang setelah aplikasi dimuat ulang.
+
+Data ritase dan histori yang sudah disimpan tetap dipertahankan.</p>
+    <div class="dialog-actions"><button id="update-cancel" value="cancel" class="secondary">Cancel</button><button value="ok" class="primary">OK, Update</button></div>
+  </form></dialog>
   <dialog id="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Konfirmasi</h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel" class="secondary">Batal</button><button value="ok" class="primary" id="confirm-ok">Lanjutkan</button></div></form></dialog>
   <dialog id="correction-dialog" aria-labelledby="correction-title"><h2 id="correction-title">Koreksi ritase</h2><form id="correction-form" novalidate><fieldset><label class="large-label">Nomor Dump Truck<input name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
 <label>Stockpile / Pile ID<select data-mapping="stock" required></select></label>

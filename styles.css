@@ -97,3 +97,5 @@ input,select,textarea,button{scroll-margin-top:100px;scroll-margin-bottom:100px}
   dialog{padding:20px 16px}
   #stock-actions,#product-actions,#checker-dialog .dialog-actions{bottom:-20px}
 }
+
+.app-version-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.app-version-row #app-version{margin:0;min-width:0;font-weight:700;color:var(--navy)}.app-version-row button{flex-shrink:0;padding:10px;font-size:13px}#build-info{overflow-wrap:anywhere}#update-state[aria-busy=true]::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;border:2px solid #aac4cb;border-top-color:var(--teal);border-radius:50%;animation:build-spin 1s linear infinite}@keyframes build-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#update-state[aria-busy=true]::before{animation:none}}#update-dialog{max-height:calc(100dvh - 32px);overflow:auto}

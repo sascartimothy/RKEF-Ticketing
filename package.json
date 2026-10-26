@@ -10,7 +10,7 @@
     "dev": "node scripts/serve-app.cjs",
     "preview": "node scripts/serve-app.cjs --preview",
     "icons": "node scripts/generate-icons.cjs",
-    "test:browser": "node scripts/browser-test.cjs"
+    "test:browser": "node scripts/browser-test.cjs && node scripts/browser-update-test.cjs"
   },
   "engines": {
     "node": ">=22"

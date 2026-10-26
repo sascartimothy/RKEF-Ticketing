@@ -46,3 +46,5 @@ URL target tetap **https://sascartimothy.github.io/RKEF-Ticketing/**. Aset, impo
 Allowlist server lokal bukan aturan akses GitHub Pages. File repository yang dilacak dapat terpublikasi saat root menjadi sumber hosting, termasuk dokumentasi/tooling. `.gitignore` mencegah penambahan biasa file privat tetapi tidak menghapus file yang sudah dilacak. Data operator, backup dan kredensial harus tetap lokal serta tidak dilacak sebelum owner memublikasikan. `config.js` memang publik dan tidak memuat rahasia.
 
 Kebutuhan operasional dalam [PRD](../requirements/PRD_RKEF_Ticketing_v0.9.md) tetap berlaku. [Laporan QA](../testing/LOCAL_TEST_RESULTS.md) membedakan tes lokal dengan gate Android/Google/Pages yang belum terverifikasi.
+
+Pembaruan Setup/cache kini memakai [identitas hash aset dan lifecycle Update](PWA_UPDATE.md), tanpa metadata rilis manual atau perubahan IndexedDB.

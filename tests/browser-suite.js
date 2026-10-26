@@ -461,7 +461,7 @@
   const registration = await navigator.serviceWorker.getRegistration();
   equal(registration.scope, location.origin + '/RKEF-Ticketing/', 'unchanged Pages worker scope');
   await until(()=>!!navigator.serviceWorker.controller,'service worker control');
-  const cache=await caches.open('rkef-shell-v1.1.2-dt-keypad-fit');const entries=await cache.keys();
+  const {workerRequest}=await import('./js/app-update.js');const info=await workerRequest(navigator.serviceWorker.controller,'BUILD_INFO');const cache=await caches.open('rkef-shell-v1.1.2-'+info.id);const entries=await cache.keys();
   assert(entries.length>20,'offline shell incomplete');assert(entries.every(r=>r.url.startsWith(location.origin+'/RKEF-Ticketing/')),'external responses cached');
   results.push('PASS existing session/local masters, save, correction, stored-number Report TSV, manual draft persistence and 360px layout');
   results.push('PASS scoped PWA shell cached under /RKEF-Ticketing/; no Sheets responses cached');

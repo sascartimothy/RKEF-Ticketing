@@ -112,6 +112,7 @@ async function ready() {
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/product-popup-browser.js'),'utf8')));
     await cdp('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
     await cdp('Page.reload',{});await pause(400);await ready();
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/pwa-icons-browser.js'),'utf8')));
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/product-popup-browser.js'),'utf8')));
     await cdp('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
     await cdp('Page.reload',{});await pause(400);await ready();
