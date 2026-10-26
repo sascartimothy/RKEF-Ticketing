@@ -449,3 +449,88 @@ File yang diubah pada tugas ini: `AGENTS.md`, `README.md`, `docs/README.md`, `do
 Git akhir: branch `main`, 23 modified + 3 untracked, tidak ada staged file. Sebelas file sudah modified saat tugas dimulai dan perubahannya dipertahankan. Tidak menjalankan add/commit/push/pull/reset/clean atau deployment. Versi tetap 1.1.2, schema IndexedDB tetap v1, cache worker `rkef-shell-v1.1.2-product-popup`. Screenshot sintetis: `private-data/qa/product-{select,add,long-list}-{360,1280}.png` (ignored, bukan asset publik). Modul baru tercantum pada allowlist server dan inventory offline.
 
 Android/Chrome HP fisik, keyboard/screen reader perangkat nyata, tempel WhatsApp/Excel aktual, Google live dan konflik dua HP tetap **NOT VERIFIED**. Seluruh hasil lokal di atas tidak menggantikan gate rilis. Tidak menggunakan atau menghapus data browser operasional asli. Panduan implementasi: [mapping material](../development/MATERIAL_MAPPING.md).
+
+## UI mobile dan header sticky v1.1.2 — 26 Oktober 2026
+
+Status awal Git bersih, branch `main`. Versi aplikasi tetap 1.1.2. Perubahan hanya UI, navigasi fokus heading, cache shell, tes dan dokumentasi; schema/data/handler simpan/Apps Script tidak diubah.
+
+Temuan audit: viewport existing sudah benar. `.code` menurunkan textarea laporan readonly menjadi 12px, select Koreksi menjadi 14px, dan aturan quick-select/file juga di bawah 16px. Ini adalah pemicu potensial auto-zoom Safari; penyebab kejadian pada screenshot iPhone sebelumnya tidak dapat dibuktikan tanpa reproduksi perangkat. Semua field kini minimal 16px (DT tetap lebih besar). Manual pinch-to-zoom tidak dinonaktifkan, tidak ada maximum-scale/user-scalable larangan, transform input, atau overflow-x hidden global.
+
+Layout diperkuat dengan min-width:0 pada anak flex/grid, kolom minmax(0,1fr), pembungkusan teks panjang, batas input/dialog/fixed controls dan inset safe area. TSV tetap scroll internal. Form popup memakai satu scroll dialog, sementara daftar panjang tetap scroll internal. Penanganan keyboard existing tetap menyembunyikan Simpan saat viewport menyusut; tidak ada handler penyimpanan yang diganti.
+
+Brand berada dalam alur normal dan bergulir keluar secara alami. Sibling `.session-bar` sticky pada top:0, z-index 15, di bawah navbar/Simpan dan native dialog top layer. IntersectionObserver pada header hanya menyembunyikan label penyimpanan tambahan saat mini, tanpa mengubah tinggi dokumen, polling, listener scroll, duplikasi status, atau render aplikasi per pixel. Satu `#session-summary` tetap diperbarui oleh renderer sesi existing. Gerakan mengikuti scroll tanpa animasi tambahan, sehingga tidak memaksakan motion ketika reduced-motion aktif. Navigasi tetap kembali ke atas dan fokus heading card Ritase baru untuk Operasional.
+
+Heading/eyebrow/deskripsi pembuka Operasional dihapus dari DOM. Card Ritase baru menjadi elemen pertama; peringatan sesi tidak aktif berada di dalam card dan Simpan tetap disabled. Urutan field, dua kolom mapping, Simpan fixed dan penyembunyian saat modal tetap berlaku.
+
+| Lebar CSS viewport | Sesi aktif / tanpa sesi | Hasil browser sintetis |
+|---|---|---|
+| 320px | PASS / PASS | Ketiga view, font/fokus, header penuh/mini/kembali, popup dan navbar tanpa overflow |
+| 360px | PASS / PASS | Ketiga view, font/fokus, header penuh/mini/kembali, popup dan navbar tanpa overflow |
+| 375px | PASS / PASS | Ketiga view, font/fokus, header penuh/mini/kembali, popup dan navbar tanpa overflow |
+| 390px | PASS / PASS | Ketiga view, font/fokus, header penuh/mini/kembali, popup dan navbar tanpa overflow |
+| 430px | PASS / PASS | Ketiga view, font/fokus, header penuh/mini/kembali, popup dan navbar tanpa overflow |
+| 768px | PASS / PASS | Ketiga view, font/fokus, header penuh/mini/kembali, popup dan navbar tanpa overflow |
+| 1280px | PASS / PASS | Ketiga view, font/fokus, header penuh/mini/kembali, popup dan navbar tanpa overflow |
+
+Tes baru [mobile-shell-browser.js](../../tests/mobile-shell-browser.js) memeriksa status aktual aktif/tanpa sesi, pembaruan teks sesi, scroll dalam dan batas pergantian mode tanpa perubahan tinggi/scrollY berulang, navigasi, modal di atas header, font computed minimal 16px dan fokus field. Popup Stockpile/Product Add dibuka melalui kontrol asli dengan Cancel tanpa penyimpanan; Koreksi, Checker dan Konfirmasi juga diperiksa. View pendek tanpa sesi diberi spacer DOM sementara untuk menguji sticky, lalu spacer dibuang. Ini tidak membuktikan gesture/keyboard/zoom Safari fisik.
+
+Regresi lokal: `npm.cmd test` PASS (58 tes Node, kontrak Apps Script mock, workspace/public/offline inventory); `npm.cmd run test:browser` PASS (termasuk matriks tujuh viewport aktif/tanpa sesi, Opsi B, handover, multi-Checker, popup, koreksi, Report 605 ritase, reset total, reload offline dan transisi preview → dev worker); `npm.cmd run check:docs` PASS; `git diff --check` PASS. Profil/server/IndexedDB sintetis terisolasi, trafik eksternal diblokir, tidak ada tulisan Google atau penggunaan database operator. Pemberitahuan LF/CRLF Git bukan kegagalan whitespace. Uji ulang sempat menemukan residu renderer dari fixture Report yang memulihkan state secara langsung; runner kini reload database yang sudah dipulihkan sebelum pemeriksaan shell, sehingga status diperiksa sesudah boot normal. Tidak ada assertion regresi yang dihapus/dilemahkan.
+
+Cache baru `rkef-shell-v1.1.2-mobile-header`; inventori aset tidak berubah karena tidak ada modul publik baru. Mekanisme update existing tetap menunggu worker lama selesai, tanpa reload paksa draft. Setelah worker baru aktif, reload memakai shell baru; cache lama dibersihkan saat aktivasi. Screenshot sintetis `private-data/qa/header-{full,mini}-{320,360,375,390,430,768,1280}.png`, beserta screenshot Operasional/popup existing, merupakan artefak lokal ignored. Inspeksi visual sampel header penuh 320px, mini 390px/768px dan popup stok 360px menunjukkan susunan sesuai, tanpa card/popup melebar keluar viewport.
+
+File berubah: `index.html`, `styles.css`, `js/navigation.js`, `sw.js`, `scripts/browser-test.cjs`, `tests/browser-suite.js`, spesifikasi operasional dan dokumen ini; file baru `tests/mobile-shell-browser.js`. Git akhir `main`: 8 modified + 1 untracked, tanpa staged file. Tidak menjalankan add/commit/push/pull/reset/clean atau deployment.
+
+**Masih NOT VERIFIED:** auto-zoom/fokus dan buka/tutup keyboard Safari iPhone fisik; Chrome Android fisik; safe area/notch/home indicator dan orientasi perangkat nyata; manual pinch-to-zoom, seleksi/clipboard WA/Excel aktual, installed PWA update pada perangkat, serta integrasi Google live. Pengujian desktop Chromium dan resize viewport sintetis tidak memenuhi gate perangkat tersebut.
+
+## Card Ritase baru dan keypad DT v1.1.2 — 26 Oktober 2026
+
+Catatan historis: keputusan lanjutan owner pada bagian berikutnya menggantikan layout keypad scroll dan ukuran minimum lebar tombol pada bagian ini. Perilaku input tetap berlaku.
+
+Panel metadata tanggal operasi/shift/timbangan/checker di dalam card dihapus dari DOM. Nomor berikutnya berada sebagai teks kecil tepat di bawah judul, membaca `state.session.nextRitase` existing; tanpa sesi/nomor tersedia, teks kosong dan tersembunyi. Status sticky dan data sesi tetap dipertahankan.
+
+Keypad di bawah input DT berurutan `1 2 3 4 5 6 7 8 9 0 ⌫`, seluruhnya `type="button"`. Target minimal 44 × 46 CSS px, satu baris dengan scroll horizontal internal pada lebar sempit. Digit ditambahkan pada akhir nilai aktual; backspace menghapus satu karakter, kosong tidak menulis draft, dan maxlength tetap 100. Pointerdown/click melepas fokus editor yang sedang terbuka tanpa memanggil focus input DT. Native button focus, Tab/Space dan input manual tetap tersedia; tidak ada readonly/inputmode none/autofocus baru. Event input bubbling memakai autosave draft existing; handler simpan, normalisasi, mapping, jam, database dan Google tidak diubah.
+
+Tes baru [dt-keypad-browser.js](../../tests/dt-keypad-browser.js) memakai sesi sintetis tersendiri pada profil browser runner, lalu memulihkan baseline. Cakupan: judul/tanpa metadata atau container kosong, next-number dari state dan pembaruan setelah simpan, nomor tidak tersedia, sesi nonaktif, urutan/tipe/nama aksesibel tombol, 820/82/hapus sampai kosong, kode manual SAP_820, batas panjang, satu event per perubahan, tidak memanggil focus DT/tidak submit, state/draft/rerender, auto-fill/pilihan material, AUTO clock, validasi DT invalid tanpa perubahan histori, simpan nyata menjadi SAP_820 dengan nomor existing, histori sebelumnya identik, serta reload offline nyata dan interaksi keypad sesudahnya. Runner juga memakai input native Chromium, klik pointer setelah fokus input dan Space pada tombol untuk memeriksa fokus serta aktivasi keyboard fisik.
+
+Matriks [mobile-shell-browser.js](../../tests/mobile-shell-browser.js) tetap menjalankan ketiga view/header/popup/navbar pada 320, 360, 375, 390, 430, 768 dan 1280px, aktif maupun nonaktif. Ditambahkan pemeriksaan satu baris keypad, ukuran setiap tombol, batas viewport, scroll sampai tombol hapus terjangkau dan tanpa scroll internal yang tidak diperlukan pada viewport lebar. Screenshot Operasional 360px dan 1280px diperiksa visual: teks nomor kecil, tanpa panel sesi, scroll internal pada layar sempit dan semua 11 tombol tampil pada desktop. Artefak screenshot tetap lokal ignored di `private-data/qa/`.
+
+Cache produksi diganti menjadi `rkef-shell-v1.1.2-dt-keypad`, versi aplikasi tetap 1.1.2. Tidak ada modul publik baru sehingga allowlist/inventori aset tidak perlu ditambah. Tes cache diperbarui untuk nama baru tanpa mengurangi assertion isi/scope. Update worker tetap mengikuti siklus existing tanpa reload paksa draft.
+
+Perubahan lokal awal dipertahankan: delapan tracked modified dan satu untracked untuk mobile shell/sticky header. File tugas keypad: `index.html`, `styles.css`, `js/operational-ui.js`, `sw.js`, `scripts/browser-test.cjs`, `tests/browser-suite.js`, `tests/mobile-shell-browser.js`, spesifikasi operasional, dokumen ini, serta file baru `tests/dt-keypad-browser.js`. Git tetap main, sembilan modified + dua untracked, tanpa staged file; tidak menjalankan add/commit/push/pull/reset/clean atau deployment.
+
+| Pemeriksaan akhir | Hasil |
+|---|---|
+| `npm.cmd test` | PASS: 58/58 tes Node, kontrak Apps Script mock, workspace/public/offline inventory dan dokumen |
+| `npm.cmd run test:browser` | PASS: seluruh regresi existing dan tes keypad baru, native pointer/Space, simpan nyata sintetis, reload offline, matriks tujuh viewport aktif/nonaktif, sticky header/navbar/Simpan dan modal |
+| `npm.cmd run check:docs` | PASS: 12 dokumen Markdown, 83 tautan lokal; target/case/anchor |
+| `git diff --check` | PASS: tanpa error whitespace; pemberitahuan normalisasi LF/CRLF styles.css bukan kegagalan |
+
+Seluruh assertion regresi dipertahankan. Tes jam keypad menunggu perubahan nilai AUTO dengan batas waktu, agar tidak bergantung pada satu jeda tetap saat scheduler headless sibuk. Selector tombol numerik pada tes native dikoreksi agar memakai nilai atribut berpetik. Keduanya perbaikan harness pengujian, tanpa perubahan mekanisme jam aplikasi.
+
+**Batas bukti:** desktop Chromium tidak membuktikan keyboard virtual Android/iPhone. Uji langsung masih diperlukan untuk ketuk angka/hapus tanpa keyboard terbuka, beralih dari keyboard manual ke keypad, swipe sampai 0/hapus, fokus/VoiceOver/TalkBack, safe area, zoom dan orientasi, serta reload/update installed PWA. Google live tetap belum diverifikasi; runner memblokir seluruh trafik eksternal dan tidak memakai data browser operasional.
+
+## Keypad 11 tombol tanpa scroll v1.1.2 — 26 Oktober 2026
+
+Keputusan lanjutan owner menggantikan fallback scroll sebelumnya. Penyebab lama: flex dengan basis/min-width 44px per tombol dan gap 4px memerlukan setidaknya 524px sebelum padding container, melebihi ruang card mobile. `overflow-x:auto` menghasilkan scrollbar dan menyembunyikan tombol terakhir di luar area awal.
+
+CSS keypad kini grid `repeat(11,minmax(0,1fr))`, gap 2px, lebar 100%, min-width 0. Tombol width 100%, min-width 0, padding 0, font 14px dan tinggi minimum 46px. Tidak ada overflow scroll/hidden/clip sebagai fallback atau indikator panah/ruang scrollbar. Sebelumnya tidak ada panah/logika scroll keypad pada JavaScript aplikasi; handler input existing tetap utuh. Scroll menuju tombol hapus di tes layout lama diganti assertion seluruh tombol langsung berada di dalam container; runner hanya memakai scroll vertikal untuk membawa baris ke area pengujian klik.
+
+[Tes mobile shell](../../tests/mobile-shell-browser.js) memeriksa tepat 11 tombol/urutan, kolom setara, satu baris, seluruh bounding rectangle di dalam keypad/card/viewport, tanpa overlap, scrollWidth tidak melebihi clientWidth, scrollLeft nol, tanpa fallback clipping, input utuh serta urutan input → keypad → mapping. Runner mengirim native pointer click ke pusat setiap tombol melalui CDP pada ketujuh viewport, dengan hit-test `elementFromPoint`. Urutan klik menghasilkan 1234567890 kemudian hapus menjadi 123456789; state/draft sama dan input DT tidak difokuskan. Draft awal dipulihkan setelah tes, tidak menyimpan transaksi tambahan melalui matriks layout.
+
+| Viewport CSS | Lebar tombol pertama terukur | Tinggi tombol | Layout dan 11 klik native tanpa scroll |
+|---|---|---|---|
+| 320px | 21,63px | 46px | PASS |
+| 360px | 25,27px | 46px | PASS |
+| 375px | 26,63px | 46px | PASS |
+| 390px | 28,00px | 46px | PASS |
+| 430px | 29,81px | 46px | PASS |
+| 768px | 60,53px | 46px | PASS |
+| 1280px | 51,13px | 46px | PASS |
+
+Screenshot `private-data/qa/keypad-fit-{320,360,375,390,430,768,1280}.png` merupakan artefak lokal ignored. Render 320px dan 390px diperiksa visual: 1 sampai 0 dan hapus terlihat sekaligus, angka terbaca, tidak ada scrollbar, tidak terpotong/menumpuk, mapping berikutnya tetap dua kolom dan Simpan/navbar fixed tetap di bawah. Lebar tombol pada HP memang di bawah 44px; tidak diklaim memenuhi target 44 × 44px atau telah terbukti nyaman/salah-sentuh rendah pada perangkat fisik.
+
+File tugas ini: `styles.css`, `sw.js`, `tests/browser-suite.js`, `tests/mobile-shell-browser.js`, `scripts/browser-test.cjs`, spesifikasi operasional dan dokumen ini. Tidak mengubah HTML, JavaScript aplikasi, handler input/simpan, schema, Google, penomoran atau TSV. Cache menjadi `rkef-shell-v1.1.2-dt-keypad-fit`, inventori tetap sama dan versi aplikasi tetap 1.1.2. Seluruh perubahan lokal sebelumnya dipertahankan; Git tetap main, sembilan modified + dua untracked, tanpa staged file, commit, push atau deployment.
+
+HP fisik tetap **NOT VERIFIED**: Chrome Android/Safari iPhone, akurasi sentuhan pada tombol sempit, transisi keyboard manual → keypad, VoiceOver/TalkBack, safe area/orientasi/zoom dan installed PWA. Profil/server/database pengujian sintetis terisolasi, seluruh trafik eksternal diblokir dan data browser operator tidak digunakan/dihapus.
+
+Pengujian akhir: `npm.cmd test` PASS (58/58 Node + kontrak Apps Script mock + workspace/public/offline checks), `npm.cmd run test:browser` PASS (matriks tujuh viewport aktif/nonaktif, 11 klik native per viewport aktif, 820 → 82/hapus kosong, manual/fokus/Space/draft/validasi/simpan SAP_820, seluruh regresi handover/Opsi B/Checker/popup/Report/offline/reload/reset/header/navbar/Simpan), `npm.cmd run check:docs` PASS, `git diff --check` PASS. Assertion minimum lebar 44px dan scroll-to-delete lama diganti kontrak baru owner, dengan pemeriksaan containment/overlap/klik langsung yang lebih sesuai; tidak mengurangi tes fungsi bisnis. Git hanya memberi pemberitahuan LF/CRLF pada styles.css, tanpa error whitespace.

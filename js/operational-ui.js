@@ -115,8 +115,9 @@ export function fillDraft() {
 export function renderEntryContext() {
   $('#no-session').hidden = !!state.session;
   $('#entry-fields').disabled = !state.ready || !state.session || saving || state.sessionTransition;
-  const s = state.draft?.session || state.session;
-  $('#entry-context').innerHTML = s ? ['operationDate', 'shift', 'scale', 'checker'].map(k => `<span>${escape(s[k] || 'Checker belum diisi')}</span>`).join('') + `<strong>Berikutnya: ${escape(state.session?.nextRitase || 'Perlu handover')}</strong>` : 'Belum ada sesi.';
+  const next = state.session?.nextRitase;
+  $('#entry-next').hidden = !next;
+  $('#entry-next').textContent = next ? `Berikutnya: ${next}` : '';
   $('#source-time').textContent = state.draft ? 'Waktu asal: ' + state.draft.sourceTime : '';
 }
 export function renderOperational() { populateMappings($('#entry-form')); renderEntryContext(); renderHistory(); }
@@ -178,6 +179,25 @@ export function initOperational(ctx) {
       tickClock();
     }
     persistDraft();
+  };
+  // Leave native button focus/keyboard activation intact. Blur an open editor
+  // before touch activation, without ever focusing the DT input from the keypad.
+  const blurEditor = () => {
+    if (document.activeElement?.matches('input, textarea, select')) document.activeElement.blur();
+  };
+  $('#dt-keypad').onpointerdown = event => {
+    const button = event.target.closest('button[data-dt-key]');
+    if (button && !button.matches(':disabled')) blurEditor();
+  };
+  $('#dt-keypad').onclick = event => {
+    const button = event.target.closest('button[data-dt-key]');
+    if (!button || button.matches(':disabled')) return;
+    blurEditor();
+    const input = $('#entry-form').elements.dtNo, key = button.dataset.dtKey;
+    const value = key === 'backspace' ? input.value.slice(0, -1) : (input.value.length < input.maxLength ? input.value + key : input.value);
+    if (value === input.value) return;
+    input.value = value;
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: key === 'backspace' ? 'deleteContentBackward' : 'insertText', data: key === 'backspace' ? null : key }));
   };
   $('#entry-form').onsubmit = e => { e.preventDefault();
     // Entry uses novalidate so capture precedes all application validation and awaits.

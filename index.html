@@ -62,13 +62,24 @@
         </article>
       </div>
     </section>
-    <section id="view-operasional" class="view" aria-labelledby="title-operasional" hidden>
-      <div class="page-heading"><div><p class="eyebrow">02 / PENCATATAN LAPANGAN</p><h1 id="title-operasional" tabindex="-1">Input ritase</h1><p>Catat transaksi dan periksa riwayat sesi aktif.</p></div><span class="page-tag">OPERASIONAL</span></div>
+    <section id="view-operasional" class="view" aria-labelledby="entry-title" hidden>
       <div class="columns operation-columns"><div class="stack">
-        <div id="no-session" class="alert warning" hidden>Aktifkan sesi di <a href="#setup">Setup</a> untuk mencatat ritase.</div>
-        <article class="card entry-card"><div class="card-heading"><h2 id="entry-title">Ritase baru</h2></div>
-          <div id="entry-context" class="context-box"></div>
-          <form id="entry-form" novalidate><fieldset id="entry-fields"><label class="large-label">Nomor Dump Truck<input name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
+        <article class="card entry-card"><div class="card-heading"><div><h1 id="entry-title" tabindex="-1">Ritase baru</h1><p id="entry-next" class="hint" hidden></p></div></div>
+          <div id="no-session" class="alert warning" hidden>Aktifkan sesi di <a href="#setup">Setup</a> untuk mencatat ritase.</div>
+          <form id="entry-form" novalidate><fieldset id="entry-fields"><label class="large-label">Nomor Dump Truck<input id="entry-dt" name="dtNo" list="dt-options" inputmode="numeric" placeholder="820 atau SAP_820" autocomplete="off" maxlength="100" required></label>
+<div id="dt-keypad" role="group" aria-label="Keypad Nomor Dump Truck">
+<button type="button" class="secondary" data-dt-key="1" aria-controls="entry-dt">1</button>
+<button type="button" class="secondary" data-dt-key="2" aria-controls="entry-dt">2</button>
+<button type="button" class="secondary" data-dt-key="3" aria-controls="entry-dt">3</button>
+<button type="button" class="secondary" data-dt-key="4" aria-controls="entry-dt">4</button>
+<button type="button" class="secondary" data-dt-key="5" aria-controls="entry-dt">5</button>
+<button type="button" class="secondary" data-dt-key="6" aria-controls="entry-dt">6</button>
+<button type="button" class="secondary" data-dt-key="7" aria-controls="entry-dt">7</button>
+<button type="button" class="secondary" data-dt-key="8" aria-controls="entry-dt">8</button>
+<button type="button" class="secondary" data-dt-key="9" aria-controls="entry-dt">9</button>
+<button type="button" class="secondary" data-dt-key="0" aria-controls="entry-dt">0</button>
+<button type="button" class="secondary" data-dt-key="backspace" aria-controls="entry-dt" aria-label="Hapus satu karakter">⌫</button>
+</div>
 <div class="entry-mappings">
 <label>Stockpile / Pile ID<button type="button" id="choose-stock" data-mapping="stock" class="secondary full" aria-haspopup="dialog">Pilih...</button></label>
 <label>Product Code / Destination<button type="button" id="choose-product" data-mapping="product" class="secondary"><span id="product-summary"></span><span>Edit</span></button></label>

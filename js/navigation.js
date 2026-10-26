@@ -1,5 +1,12 @@
 import { $, $$ } from './ui-components.js';
 export function initNavigation(onNavigate) {
+  // The brand scrolls in normal flow; its sibling status bar sticks to the
+  // viewport without changing document geometry. Observe only the extra label.
+  const header = $('.app-header');
+  const headerObserver = new IntersectionObserver(([entry]) => {
+    $('.session-bar').classList.toggle('is-mini', !entry.isIntersecting && entry.boundingClientRect.bottom <= 0);
+  });
+  headerObserver.observe(header);
   // Display-only keyboard handling, independent of the operational clock/draft.
   const viewport = window.visualViewport;
   let fullHeight = window.innerHeight, width = window.innerWidth;
@@ -22,7 +29,7 @@ export function initNavigation(onNavigate) {
     for (const section of $$('.view')) section.hidden = section.id !== 'view-' + view;
     for (const link of $$('[data-view]')) link.getAttribute('data-view') === view ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current');
     onNavigate(view);
-    $('#title-' + view).focus({ preventScroll: true });
+    $(view === 'operasional' ? '#entry-title' : '#title-' + view).focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
   window.addEventListener('hashchange', navigate); navigate();

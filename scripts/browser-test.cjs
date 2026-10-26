@@ -161,6 +161,69 @@ async function ready() {
       await cdp('Page.reload',{});await pause(500);await ready();
     }
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/report-browser.js'),'utf8')));
+    // Report fixtures replace runtime state directly. Reload the restored database
+    // so subsequent shell assertions exercise normal boot/rendering, not fixture UI.
+    await cdp('Page.reload',{});await pause(400);await ready();
+    const mobileShell = fs.readFileSync(path.join(root,'tests/mobile-shell-browser.js'),'utf8');
+    const keypadSuite = fs.readFileSync(path.join(root,'tests/dt-keypad-browser.js'),'utf8');
+    console.log(await evaluate(keypadSuite));
+    // Native editing, physical keyboard button activation and pointer focus transfer.
+    await evaluate("document.querySelector('#entry-dt').focus();document.querySelector('#entry-dt').select()");
+    await cdp('Input.insertText',{text:'SAP_820'});
+    const deletePoint=await evaluate("(()=>{const b=document.querySelector('[data-dt-key=backspace]');b.scrollIntoView({block:'center'});const r=b.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()");
+    await cdp('Input.dispatchMouseEvent',{type:'mousePressed',...deletePoint,button:'left',clickCount:1});
+    await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',...deletePoint,button:'left',clickCount:1});
+    console.log(await evaluate("if(document.querySelector('#entry-dt').value!=='SAP_82'||document.activeElement===document.querySelector('#entry-dt'))throw Error('Native keypad pointer/delete/focus');'PASS native manual typing and keypad pointer blur/delete without refocusing DT'"));
+    await evaluate("document.querySelector('[data-dt-key=\"0\"]').focus()");
+    await cdp('Input.dispatchKeyEvent',{type:'rawKeyDown',key:' ',code:'Space',windowsVirtualKeyCode:32});
+    await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
+    console.log(await evaluate("(async()=>{const {flushDraft}=await import('./js/operational-ui.js');if(document.querySelector('#entry-dt').value!=='SAP_820')throw Error('Physical keyboard keypad activation');document.querySelector('[data-dt-key=backspace]').click();await flushDraft();return 'PASS physical Space activates one keypad digit and preserves shared draft';})()"));
+    await cdp('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
+    await cdp('Page.reload',{});await pause(500);await ready();
+    console.log(await evaluate(keypadSuite));
+    await cdp('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
+    await cdp('Page.reload',{});await pause(400);await ready();
+    const checkMobileShell = async () => {
+      for (const width of [320,360,375,390,430,768,1280]) {
+        await cdp('Emulation.setDeviceMetricsOverride',{width,height:800,deviceScaleFactor:1,mobile:true});
+        await pause(100);
+        console.log(await evaluate(mobileShell));
+        if (await evaluate("(async()=>!!(await import('./js/state.js')).state.session)()")) {
+          const shellQa=path.join(root,'private-data','qa');fs.mkdirSync(shellQa,{recursive:true});
+          const keyPoints=await evaluate(`(()=>{
+            const dt=document.querySelector('#entry-dt'),pad=document.querySelector('#dt-keypad');
+            window.keypadLayoutOriginal=dt.value;dt.value='';dt.dispatchEvent(new Event('input',{bubbles:true}));
+            pad.scrollIntoView({block:'center'});
+            return [...pad.querySelectorAll('button')].map(b=>{const r=b.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
+              if(document.elementFromPoint(x,y)!==b)throw Error('Keypad key not directly clickable: '+b.dataset.dtKey);
+              return {x,y};});
+          })()`);
+          for (const point of keyPoints) {
+            await cdp('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+            await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});
+          }
+          console.log(await evaluate(`(async()=>{
+            const dt=document.querySelector('#entry-dt'),pad=document.querySelector('#dt-keypad');
+            const {state}=await import('./js/state.js'),{flushDraft}=await import('./js/operational-ui.js');
+            if(dt.value!=='123456789'||state.draft.values.dtNo!==dt.value||pad.scrollLeft!==0||document.activeElement===dt)throw Error('Native all-key clicks/delete/draft/focus without scroll');
+            dt.value=window.keypadLayoutOriginal;delete window.keypadLayoutOriginal;dt.dispatchEvent(new Event('input',{bubbles:true}));await flushDraft();
+            const r=pad.querySelector('button').getBoundingClientRect();window.scrollTo(0,0);
+            return 'PASS keypad ${width}px: all 11 native pointer clicks without scroll, 1234567890 then delete, shared draft; button '+r.width.toFixed(2)+' x '+r.height+' CSS px';
+          })()`));
+          await pause(100);
+          fs.writeFileSync(path.join(shellQa,`keypad-fit-${width}.png`),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+          for (const mode of ['full','mini']) {
+            await evaluate(`window.scrollTo(0,${mode === 'mini' ? 240 : 0});document.querySelector('#toast').hidden=true`);
+            await pause(100);
+            fs.writeFileSync(path.join(shellQa,`header-${mode}-${width}.png`),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+          }
+          await evaluate('window.scrollTo(0,0)');
+        }
+      }
+      await cdp('Emulation.setDeviceMetricsOverride',{width:360,height:800,deviceScaleFactor:1,mobile:true});
+      await pause(100);
+    };
+    await checkMobileShell();
     console.log(await evaluate(fs.readFileSync(path.join(root,'tests/operational-layout-browser.js'),'utf8')));
     // Simulate a resized viewport with a focused field; this is not a physical IME test.
     await evaluate("document.querySelector('#entry-form [name=note]').focus()");
@@ -276,6 +339,7 @@ async function ready() {
       if(document.querySelector('#report-output').value || !document.querySelector('#copy-report').disabled || !document.querySelector('#report-sections').hidden)throw Error('Reset retained active Report');
       return 'PASS browser reload after full session reset removes active history without reactivating session or draft';
     })()`));
+    await checkMobileShell();
     if(errors.length)throw Error('Unhandled browser exceptions: '+errors.join('\n'));
     console.log('PASS local Chromium UI at 360px and 1280px; no live Google requests permitted');
     console.log('Screenshots: private-data/qa/ (ignored local artifacts)');
