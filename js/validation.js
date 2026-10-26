@@ -1,3 +1,4 @@
+import { checkerText } from './checkers.js';
 import { calendarDate, validTime, timePrecision } from './time-date.js';
 export const FIELDS = ['dtNo', 'sourceCode', 'stockpile', 'pileId', 'productCode', 'dome', 'destination', 'time', 'scale', 'checker', 'shift'];
 export function textError(value, label = 'Nilai', max = 100) {
@@ -9,12 +10,15 @@ export function textError(value, label = 'Nilai', max = 100) {
 export function validateRecord(record, { historical = false, allowUnknownChecker = false } = {}) {
   if (!record || typeof record !== 'object') return ['Record / snapshot tidak valid.'];
   const errors = [];
+  if (record.checkers !== undefined) {
+    try { if (checkerText(record) !== record.checker) errors.push('Serialisasi Checker tidak cocok.'); } catch(e) { errors.push(e.message); }
+  }
   if (record.ritaseNumber !== undefined && (!Number.isSafeInteger(record.ritaseNumber) || record.ritaseNumber < 1)) errors.push('Nomor ritase tidak valid.');
   try { calendarDate(record.operationDate); } catch (e) { errors.push(e.message); }
   for (const field of FIELDS) {
     if (historical && ['checker', 'shift'].includes(field)) continue;
     if (allowUnknownChecker && field === 'checker' && record.checker === '' && record.checkerConfirmed === false) continue;
-    const error = textError(record[field], field);
+    const error = textError(record[field], field, field === 'checker' ? 4100 : 100);
     if (error) errors.push(error);
   }
   if (!validTime(record.time)) errors.push('Jam harus HH.mm atau HH.mm.ss (00.00.00–23.59.59).');

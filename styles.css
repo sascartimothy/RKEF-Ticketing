@@ -31,3 +31,5 @@
 #report-piles tfoot{font-weight:800;background:#edf6f4;color:#1b7067}
 #report-output{max-height:240px;resize:none;margin-bottom:10px}#report-status{margin:12px 0 0;overflow-wrap:anywhere}
 #copy-report{flex:1}#view-report .button-row button{max-width:100%}
+
+#checker-dialog{max-height:90dvh;overflow:auto}#checker-body{max-height:60dvh;overflow:auto;overflow-wrap:anywhere}#checker-body .check-label{min-height:48px;align-items:center;font-size:14px}#checker-body .master-item span{flex:1;min-width:100px}#choose-checkers{text-align:left;overflow-wrap:anywhere}#checker-dialog .dialog-actions{position:sticky;bottom:-26px;background:white;padding:12px 0}

@@ -1,3 +1,4 @@
+import { initCheckers, renderCheckers } from './checker-ui.js';
 import { state, activeMasters } from './state.js';
 import { prepareSessionEnd, finishSessionEnd } from './operational-ui.js';
 import { $, escape, busy, confirmAction } from './ui-components.js';
@@ -14,10 +15,7 @@ export function renderSetup() {
     ['Nomor ritase berikutnya', session.handoverConfirmed ? session.nextRitase : 'Belum diketahui — perlu handover valid']
   ].map(([label, value]) => `<div><dt>${label}</dt><dd>${escape(value)}</dd></div>`).join('')}</dl>` : '<p class="alert warning">Belum ada sesi. Tanggal, shift, timbangan, dan nomor berikutnya menunggu paste handover valid. Bootstrap tanpa laporan menunggu OD-08.</p>';
   if (session?.handoverConfirmed && !session.checker) $('#session-details').innerHTML += '<p class="alert warning">Isi nama checker yang sedang bertugas sebelum menyimpan ritase baru.</p>';
-  if ($('#checker-form').dataset.session !== session?.handoverId) $('#checker-feedback').hidden = true;
-  $('#checker-form').dataset.session = session?.handoverId || '';
-  $('#checker-form').hidden = !session;
-  if (document.activeElement !== $('#checker-form').elements.checker) $('#checker-form').elements.checker.value = session?.checker || '';
+  renderCheckers();
   const lists = {
     scale: activeMasters('scale').map(m => m.value), checker: activeMasters('checker').map(m => m.value),
     dt: state.records.filter(r => r.origin === 'local').map(r => r.dtNo),
@@ -30,7 +28,7 @@ export function renderSetup() {
 // Local master services and stored mappings remain available; editing UI is outside Setup v1.1.0.
 export function initSetup(ctx) {
   $('#new-session').onclick = () => busy($('#new-session'), async () => {
-    let locked = false, committed = false;
+    let locked = false;
     const output = $('#import-preview');
     try {
       if ($('#confirm-dialog').open) throw Error('Selesaikan konfirmasi yang sedang terbuka.');
@@ -38,38 +36,27 @@ export function initSetup(ctx) {
       const settings = await ctx.db.all('settings');
       const session = settings.find(s => s.id === 'session')?.value || null;
       const draft = settings.find(s => s.id === 'draft')?.value || null;
-      if (session || draft || state.draft) {
-        if (!await confirmAction('Mulai Sesi Baru?', 'Semua ritase yang sudah disimpan pada sesi aktif ini, serta draft yang belum disimpan, akan dihapus secara permanen.\n\nData handover WhatsApp, master, dan transaksi sesi lainnya tetap tersimpan.\n\nPastikan laporan atau backup sesi ini sudah diamankan jika masih diperlukan.\n\nLanjutkan reset sesi?', 'Hapus Sesi & Mulai Baru')) return;
+      const cycle = settings.find(s => s.id === 'handoverCycle')?.value || null;
+      {
+        if (!await confirmAction('Mulai Sesi Baru?', 'SEMUA histori dan transaksi operasional lokal akan dihapus permanen, termasuk data BDM dan ONI, seluruh sesi, impor WhatsApp, draft, audit, dan mapping material.\n\nHanya cache master Checker dan Destination dari Google Sheets yang dipertahankan. Data Google Sheets tidak diubah.\n\nLanjutkan reset total?', 'Hapus Sesi & Mulai Baru')) return;
         // Check the visible session too; never end an unseen replacement session.
         if (JSON.stringify(session) !== JSON.stringify(state.session)) throw Error('Sesi berubah di tab lain. Muat ulang dan periksa sesi.');
-        output.hidden = false; output.className = 'alert warning'; output.textContent = 'Menghapus sesi… Tunggu sampai penyimpanan selesai.';
-        await ctx.db.endSession(session, draft);
+        output.hidden = false; output.className = 'alert warning'; output.textContent = 'Menghapus seluruh data operasional… Tunggu sampai penyimpanan selesai.';
+        await ctx.db.endSession(session, draft, cycle);
       }
-      committed = true;
-      finishSessionEnd(true); locked = false;
       $('#wa-source').value = '';
+      finishSessionEnd(true);
+      location.hash = 'setup';
+      // Hold the lock until committed state has been read back.
+      state.sessionTransition = true;
       output.hidden = false; output.className = 'alert success';
-      output.textContent = 'Sesi sebelumnya telah dihapus. Tempel laporan WhatsApp untuk memulai sesi baru.';
+      output.textContent = 'Seluruh data operasional lokal telah dihapus. Tempel laporan WhatsApp untuk memulai sesi baru.';
       await ctx.changed(); ctx.renderReport();
       $('#wa-source').focus();
     } catch (error) {
       output.hidden = false; output.className = 'alert danger'; output.textContent = error.message;
-    } finally { if (locked) finishSessionEnd(committed); }
+    } finally { if (locked) { finishSessionEnd(false); ctx.ensureDraft(); } }
   }).catch(ctx.fail);
 
-  $('#checker-form').onsubmit = event => {
-    event.preventDefault();
-    if (state.sessionTransition) return;
-    busy($('#checker-form button'), async () => {
-      const feedback = $('#checker-feedback');
-      feedback.hidden = true;
-      try {
-        await ctx.flushDraft();
-        await ctx.db.saveChecker($('#checker-form').elements.checker.value, state.session);
-        await ctx.changed(); ctx.ensureDraft(); ctx.renderReport();
-        feedback.className = 'alert success'; feedback.textContent = 'Checker tersimpan.';
-      } catch (error) { feedback.className = 'alert danger'; feedback.textContent = error.message; }
-      feedback.hidden = false;
-    }).catch(ctx.fail);
-  };
+  initCheckers(ctx);
 }

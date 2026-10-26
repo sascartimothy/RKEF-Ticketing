@@ -6,7 +6,7 @@ const FRONTEND_FILES = Object.freeze([
   'index.html', 'integration-test.html', 'styles.css', 'config.js',
   'manifest.webmanifest', 'sw.js', '.nojekyll',
   'assets/icon.svg', 'assets/icon-192.png', 'assets/icon-512.png',
-  'js/app.js', 'js/apps-script-api.js', 'js/database.js', 'js/destinations-ui.js',
+  'js/checkers.js', 'js/checker-ui.js', 'js/app.js', 'js/apps-script-api.js', 'js/database.js', 'js/destinations-ui.js',
   'js/import-ui.js', 'js/master-data.js', 'js/navigation.js', 'js/operational-ui.js',
   'js/report-ui.js', 'js/setup-ui.js', 'js/state.js', 'js/time-date.js',
   'js/ui-components.js', 'js/validation.js', 'js/wa-exporter.js', 'js/wa-parser.js'

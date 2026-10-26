@@ -1,3 +1,4 @@
+import { normalizeCheckers, checkerText, validateCheckers, validateCheckerRequest, validListVersion } from './checkers.js';
 import { uid, now, clone } from './state.js';
 import { assertRecord, destinationName, textError } from './validation.js';
 import { calendarDate, validTime, excelSerial, normalizeTime, timeOrderKey, timePrecision } from './time-date.js';
@@ -8,7 +9,7 @@ import { potentialDuplicates } from './wa-exporter.js';
 export const STORES = ['records', 'masters', 'settings', 'cache', 'audit', 'imports', 'pending'];
 const request = req => new Promise((resolve, reject) => { req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
 export class Database {
-  constructor(db) { this.db = db; }
+  constructor(db, generation = null) { this.db = db; this.generation = generation; }
   static open(factory = globalThis.indexedDB, name = 'rkef-ticketing') {
     return new Promise((resolve, reject) => {
       if (!factory) return reject(Error('IndexedDB tidak tersedia. Gunakan browser biasa dan izinkan penyimpanan.'));
@@ -18,11 +19,16 @@ export class Database {
       req.onblocked = () => reject(Error('Penyimpanan terkunci oleh tab lain. Tutup tab aplikasi lain dan muat ulang.'));
       req.onsuccess = () => {
         req.result.onversionchange = () => { req.result.close(); globalThis.dispatchEvent?.(new Event('rkef-storage-closed')); };
-        resolve(new Database(req.result));
+        const tx = req.result.transaction(['settings'], 'readonly');
+        const generation = tx.objectStore('settings').get('resetGeneration');
+        tx.oncomplete = () => resolve(new Database(req.result, generation.result?.value || null));
+        tx.onabort = () => reject(tx.error || Error('Gagal membaca generasi penyimpanan.'));
       };
     });
   }
   async transaction(names, mode, work) {
+    const generation = this.generation;
+    if (mode === 'readwrite') names = [...new Set([...names, 'settings'])];
     const tx = this.db.transaction(names, mode);
     const done = new Promise((resolve, reject) => {
       tx.oncomplete = resolve;
@@ -31,7 +37,10 @@ export class Database {
     });
     done.catch(() => {});
     const stores = Object.fromEntries(names.map(n => [n, tx.objectStore(n)]));
-    try { const result = await work(stores); await done; return result; }
+    try {
+      if (mode === 'readwrite' && ((await request(stores.settings.get('resetGeneration')))?.value || null) !== generation) throw Error('Data operasional telah direset di tab lain. Muat ulang sebelum menulis data.');
+      const result = await work(stores); await done; return result;
+    }
     catch (error) { try { tx.abort(); } catch { /* already completed/aborted */ } await done.catch(() => {}); throw error; }
   }
   get(store, id) { return this.transaction([store], 'readonly', s => request(s[store].get(id))); }
@@ -44,30 +53,27 @@ export class Database {
       s.settings.put({ id: 'draft', value: clone(value) });
     });
   }
-  async endSession(expectedSession, expectedDraft) {
-    return this.transaction(['settings', 'records', 'audit'], 'readwrite', async s => {
+  async endSession(expectedSession, expectedDraft, expectedCycle = undefined) {
+    const generation = uid();
+    const result = await this.transaction(STORES, 'readwrite', async s => {
       const session = (await request(s.settings.get('session')))?.value || null;
       const draft = (await request(s.settings.get('draft')))?.value || null;
+      if (expectedCycle !== undefined && canonical((await request(s.settings.get('handoverCycle')))?.value || null) !== canonical(expectedCycle)) throw Error('Siklus persiapan berubah di tab lain. Muat ulang sebelum reset.');
       if (canonical(session) !== canonical(expectedSession) || canonical(draft) !== canonical(expectedDraft)) throw Error('Sesi atau draft berubah di tab lain. Muat ulang dan periksa sebelum memulai sesi baru.');
-      if (!session && !draft) return false;
-      if (!session) throw Error('Tidak ada sesi aktif yang dapat diidentifikasi. Tidak ada transaksi yang dihapus.');
-      calendarDate(session.operationDate);
-      if (!['DS', 'NS'].includes(session.shift) || !['BDM', 'ONI'].includes(session.scale) || !session.handoverId) throw Error('Identitas sesi tidak lengkap. Reset ditahan; tidak ada transaksi yang dihapus.');
-      if (draft && ['activationId', 'handoverId', 'operationDate', 'shift', 'scale'].some(k => draft.session?.[k] !== session[k])) throw Error('Identitas draft berbeda dari sesi aktif. Reset ditahan.');
-      const records = await request(s.records.getAll());
-      const scope = records.filter(r => r.origin === 'local' && ['operationDate', 'shift', 'scale'].every(k => r[k] === session[k]));
-      // Missing provenance cannot safely distinguish an older activation of the same report.
-      if (scope.some(r => !r.numberingSession || (r.numberingSession === session.handoverId && session.activationId && !r.activationId))) throw Error('Identitas aktivasi ritase lokal tidak dapat dipastikan. Reset ditahan tanpa penghapusan.');
-      const removed = scope.filter(r => r.numberingSession === session.handoverId && r.activationId === session.activationId);
-      const ids = new Set(removed.map(r => r.id));
-      for (const r of removed) s.records.delete(r.id); // Includes tombstones.
-      for (const audit of await request(s.audit.getAll())) if (ids.has(audit.recordId)) s.audit.delete(audit.id);
-      s.settings.delete('session');
-      s.settings.delete('draft');
-      s.audit.add({ id: uid(), action: 'session-reset', at: now(), session: Object.fromEntries(['operationDate', 'shift', 'scale', 'handoverId', 'activationId'].filter(k => session[k] !== undefined).map(k => [k, session[k]])), deletedCount: removed.length });
+      // Only the two shared Google master snapshots survive. Never preserve a
+      // whole cache/master store: unknown entries may contain operational state.
+      const caches = await request(s.cache.getAll());
+      for (const name of STORES) s[name].clear();
+      for (const cache of caches) if (['destinations', 'checkers'].includes(cache.id)) s.cache.put(cache);
+      // Technical write fence, containing no operational history. Every writer
+      // locks settings and checks its connection's generation in its transaction.
+      s.settings.put({ id: 'resetGeneration', value: generation });
       return true;
     });
+    this.generation = generation; // Never advance the connection on abort.
+    return result;
   }
+
   async saveSession(value) {
     assertRecord({ ...value, dtNo: 'check', sourceCode: 'check', stockpile: 'check', pileId: 'check', productCode: 'check', dome: 'check', destination: 'check', time: '00.00' });
     return this.transaction(['settings', 'masters'], 'readwrite', async s => {
@@ -77,18 +83,42 @@ export class Database {
     });
   }
   async saveChecker(checker, expectedSession) {
-    const error = textError(checker, 'Checker');
-    if (error) throw Error(error);
-    return this.transaction(['settings', 'masters', 'audit'], 'readwrite', async s => {
+    return this.saveCheckers([{checker_id: 'legacy:' + checker, name: checker}], expectedSession);
+  }
+  async saveCheckers(checkers, expectedSession) {
+    checkers = normalizeCheckers(checkers);
+    return this.transaction(['settings', 'audit'], 'readwrite', async s => {
       const active = await request(s.settings.get('session'));
-      if (!active || canonical(active.value) !== canonical(expectedSession)) throw Error('Sesi berubah. Isi checker ulang.');
+      if (!active || canonical(active.value) !== canonical(expectedSession)) throw Error('Sesi berubah. Pilih checker ulang.');
       const draft = await request(s.settings.get('draft'));
-      if (draft?.value?.dirty || draft?.value?.editId) throw Error('Selesaikan draft sebelum mengganti checker.');
-      const value = { ...active.value, checker, checkerConfirmed: true, savedAt: now() };
+      const value = { ...active.value, checkers, checker: checkerText({checkers}), checkerConfirmed: checkers.length > 0, savedAt: now() };
       s.settings.put({ id: 'session', value });
-      const masters = await request(s.masters.getAll());
-      if (!masters.some(m => m.kind === 'checker' && m.value === checker && m.active !== false)) s.masters.add({ id: uid(), kind: 'checker', value: checker, active: true, origin: 'local', createdAt: now() });
+      // Preserve unsaved input, update only its session identity in the same transaction.
+      if (draft) {
+        if (['activationId','handoverId','operationDate','shift','scale'].some(k => draft.value.session[k] !== active.value[k])) throw Error('Draft sesi berbeda. Muat ulang.');
+        s.settings.put({id:'draft',value:{...draft.value,session:clone(value)}});
+      }
       s.audit.add({ id: uid(), action: 'session-checker', at: now(), before: active.value, after: value });
+    });
+  }
+  async beginCheckerRequest(pending) {
+    validateCheckerRequest(pending.payload);
+    return this.transaction(['pending'], 'readwrite', async s => {
+      const previous = await request(s.pending.get('checker'));
+      if (previous && canonical(previous) !== canonical(pending)) throw Error('Permintaan Checker lain belum pasti hasilnya. Periksa permintaan tersimpan.');
+      s.pending.put(clone(pending));
+    });
+  }
+  async finishCheckerRequest(expected, result = null) {
+    return this.transaction(['pending','cache'], 'readwrite', async s => {
+      const previous = await request(s.pending.get('checker'));
+      if (canonical(previous) !== canonical(expected)) throw Error('Permintaan Checker berubah di tab lain. Muat ulang.');
+      if (result) {
+        validateCheckers({ok:true,count:result.values.length,checkers:result.values});
+        if (!validListVersion(result.listVersion)) throw Error('Token cache Checker tidak valid.');
+        s.cache.put({id:'checkers',values:clone(result.values),listVersion:result.listVersion,syncedAt:now()});
+      }
+      s.pending.delete('checker');
     });
   }
   async snapshot() {
@@ -110,7 +140,8 @@ export class Database {
 
       const active = (await request(s.settings.get('session')))?.value;
       if (!active?.handoverConfirmed || !active.handoverId || !['DS', 'NS'].includes(active.shift)) throw Error('Nomor awal belum terverifikasi. Paste handover valid di Setup (OD-08).');
-      if (['operationDate', 'scale', 'shift', 'checker'].some(k => data[k] !== active[k])) throw Error('Sesi berubah atau histori sudah ditutup. Koreksi hanya untuk sesi aktif.');
+      if (['operationDate', 'scale', 'shift'].some(k => data[k] !== active[k]) || (!previous && (data.checker !== active.checker || canonical(data.checkers) !== canonical(active.checkers)))) throw Error('Sesi berubah atau histori sudah ditutup. Koreksi hanya untuk sesi aktif.');
+      if (previous && (data.checker !== previous.checker || canonical(data.checkers) !== canonical(previous.checkers))) throw Error('Snapshot Checker histori tidak boleh berubah.');
       if (previous && (previous.origin !== 'local' || previous.numberingSession !== active.handoverId)) throw Error('Histori di luar sesi aktif tidak dapat dikoreksi (OD-05).');
       if (previous && previous.activationId !== active.activationId) throw Error('Identitas aktivasi berubah. Buka ulang sesi aktif sebelum koreksi.');
       if (!previous && active.activationId !== data.activationId) throw Error('Sesi draft sudah berakhir atau berubah. Muat ulang sebelum menyimpan.');
@@ -161,6 +192,7 @@ export class Database {
   }
   async importHandover({ digest, rows, mappings, metadata, decisions, source }) {
     // Existing historical-import service is retained for compatibility; new Setup always supplies the complete source.
+    const generation = this.generation;
     let handover = null;
     if (source !== undefined) {
       if (typeof source !== 'string' || source.length > 4e6) throw Error('Sumber handover tidak valid.');
@@ -172,20 +204,25 @@ export class Database {
     }
     for (const row of rows) assertRecord({ ...row.record, ...metadata }, { allowUnknownChecker: !!handover });
     return this.transaction(['records', 'masters', 'imports', 'audit', 'settings'], 'readwrite', async s => {
+      if (this.generation !== generation) throw Error('Data operasional telah direset. Paste laporan baru.');
       const previous = await request(s.imports.get(digest));
       if (previous && !handover) return { already: true, count: previous.count };
       let activeSession = null;
+      const cycle = (await request(s.settings.get('handoverCycle')))?.value || null;
       if (handover) {
         const active = await request(s.settings.get('session'));
         activeSession = active?.value || null;
         if (decisions && 'expectedSession' in decisions && canonical(active?.value || null) !== canonical(decisions.expectedSession)) throw Error('Sesi berubah sejak preview. Periksa handover ulang (OD-06).');
+        if (decisions && 'expectedCycle' in decisions && canonical(cycle) !== canonical(decisions.expectedCycle)) throw Error('Siklus persiapan berubah di tab lain. Periksa handover ulang.');
         const records = await request(s.records.getAll());
         const draft = await request(s.settings.get('draft'));
         if (draft?.value?.dirty || draft?.value?.editId) throw Error('Draft aktif belum selesai. Konflik handover menunggu OD-06; data tidak diubah.');
         const target = handover.session;
         const receipts = await request(s.imports.getAll());
         const rank = value => `${value.operationDate}/${value.shift === 'NS' ? '1' : '0'}`;
-        const known = [active?.value, ...receipts.map(r => r.session)].filter(v => v?.handoverConfirmed && v.scale === target.scale);
+        // Legacy cycle metadata remains readable until total reset clears it.
+        // All receipts here belong to data still present in the database.
+        const known = [active?.value, ...(cycle ? cycle.preparations : receipts.map(r => r.session))].filter(v => v?.handoverConfirmed && v.scale === target.scale);
         if (known.some(v => rank(target) < rank(v) || (rank(target) === rank(v) && target.nextNumber < v.nextNumber))) throw Error('Handover akan memundurkan sesi / nomor persiapan timbangan ini. Rekonsiliasi menunggu OD-06.');
         if (records.some(r => r.operationDate === target.operationDate && r.scale === target.scale && r.origin === 'local')) throw Error('Sesi tidak dapat diaktifkan karena nomor ritase bertabrakan dengan transaksi lokal yang sudah tersimpan. Rekonsiliasi menunggu OD-06.');
         if (records.some(r => r.operationDate === target.operationDate && r.scale === target.scale && (!r.ritaseNumber || r.ritaseNumber >= target.nextNumber))) throw Error('Sesi tidak dapat diaktifkan karena nomor ritase tujuan bertumpang tindih dengan histori tersimpan (OD-05/OD-06).');
@@ -232,6 +269,7 @@ export class Database {
       }
       if (!previous) s.imports.add({ id: digest, count: rows.length, at: stamp, metadata, decisions, ...(handover ? { source, session: handover.session } : {}) });
       if (handover) s.settings.put({ id: 'session', value: { ...handover.session, handoverId: digest, activationId: uid(), savedAt: stamp } });
+      if (handover && cycle) s.settings.put({ id: 'handoverCycle', value: { ...cycle, preparations: [...cycle.preparations.filter(v => v.scale !== handover.session.scale), handover.session] } });
       s.settings.put({ id: 'lastHandover', value: digest });
       s.audit.add({ id: uid(), action: previous ? 'handover-activate' : 'import', importId: digest, count: rows.length, at: stamp, decisions, supersededMasterIds: superseded.map(m => m.id), ...(previous ? { before: activeSession, after: handover.session } : {}) });
       return { already: !!previous, count: rows.length, activated: !!handover };
@@ -252,17 +290,22 @@ export class Database {
   async restore(backup, mode = 'merge') {
     validateBackup(backup);
     if (!['merge', 'replace'].includes(mode)) throw Error('Mode restore tidak valid.');
-    return this.transaction(STORES, 'readwrite', async s => {
+    const generation = this.generation || backup.stores.settings.find(row => row.id === 'resetGeneration')?.value || null;
+    const result = await this.transaction(STORES, 'readwrite', async s => {
       if (mode === 'replace') for (const n of STORES) s[n].clear();
       let count = 0;
       for (const n of STORES) for (const row of backup.stores[n]) {
+        if (n === 'settings' && row.id === 'resetGeneration') continue;
         const existing = mode === 'merge' ? await request(s[n].get(row.id)) : null;
         if (existing && canonical(existing) !== canonical(row)) throw Error(`Konflik ID ${n}/${row.id}. Backup tidak digabung; gunakan perangkat kosong atau tinjau mode ganti.`);
         if (!existing) { s[n].put(clone(row)); count++; }
       }
+      if (generation) s.settings.put({ id: 'resetGeneration', value: generation });
       assertBusinessNumbers(await request(s.records.getAll()));
       return count;
     });
+    this.generation = generation;
+    return result;
   }
 }
 function canonical(value) {
@@ -273,8 +316,9 @@ function canonical(value) {
 function validSession(value) {
   if (!value || typeof value !== 'object') throw Error('Sesi backup rusak.');
   calendarDate(value.operationDate);
-  const keys = value.handoverConfirmed && value.checkerConfirmed === false && value.checker === '' ? ['shift', 'scale'] : ['shift', 'scale', 'checker'];
-  if (keys.some(k => textError(value[k], k))) throw Error('Identitas sesi backup rusak.');
+  if (value.checkers !== undefined && checkerText(value) !== value.checker) throw Error('Serialisasi Checker sesi rusak.');
+  const keys = value.checkerConfirmed === false && value.checker === '' ? ['shift', 'scale'] : ['shift', 'scale', 'checker'];
+  if (keys.some(k => textError(value[k], k, k === 'checker' ? 4100 : 100))) throw Error('Identitas sesi backup rusak.');
   if (value.startNumber !== undefined && (!Number.isSafeInteger(value.startNumber) || value.startNumber < 1 || value.startNumber > value.nextNumber)) throw Error('Nomor awal sesi backup rusak.');
   if (value.handoverConfirmed && (!['DS', 'NS'].includes(value.shift) || !['BDM', 'ONI'].includes(value.scale) || !Number.isSafeInteger(value.nextNumber) || value.nextNumber < 1 || value.nextRitase !== `${excelSerial(value.operationDate)}-${String(value.nextNumber).padStart(3, '0')}`)) throw Error('Metadata persiapan handover backup rusak.');
 }
@@ -307,11 +351,20 @@ export function validateBackup(b) {
         validSession(d.session);
         for (const key of ['dtNo', 'stockpile', 'pileId', 'sourceCode', 'productCode', 'dome', 'destination', 'time', 'note']) if (typeof d.values[key] !== 'string' || d.values[key].length > (key === 'note' ? 1000 : 100)) throw Error('Nilai draft backup rusak.');
       }
+      if (n === 'cache' && row.id === 'checkers') {
+        if (!validStamp(row.syncedAt)) throw Error('Cache Checker rusak.');
+        validateCheckers({ok:true,count:row.values?.length,checkers:row.values}, {legacyCache:true});
+        if (row.listVersion !== undefined && !validListVersion(row.listVersion)) throw Error('Token cache Checker rusak.');
+      }
       if (n === 'cache' && row.id === 'destinations') {
         if (!Array.isArray(row.values) || !validStamp(row.syncedAt)) throw Error('Cache Destination backup rusak.');
         validateList({ ok: true, count: row.values.length, destinations: row.values });
       }
-      if (n === 'pending') {
+      if (n === 'pending' && row.id === 'checker') {
+        if (!validStamp(row.createdAt)) throw Error('Permintaan Checker backup rusak.');
+        validateCheckerRequest(row.payload);
+      }
+      if (n === 'pending' && row.id !== 'checker') {
         if (row.id !== 'destination' || typeof row.requestId !== 'string' || !/^[A-Za-z0-9_-]{12,100}$/.test(row.requestId) || !validStamp(row.createdAt) || destinationName(row.name) !== row.name) throw Error('Permintaan Destination backup rusak.');
       }
       if (n === 'audit' && (!validStamp(row.at) || !['create', 'correct', 'delete', 'master', 'import', 'dismiss-destination', 'session-checker', 'renumber', 'session-end', 'session-reset', 'handover-activate'].includes(row.action))) throw Error('Log audit backup rusak.');

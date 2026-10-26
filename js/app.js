@@ -1,3 +1,4 @@
+import { renderCheckers } from './checker-ui.js';
 import { Database, validateBackup } from './database.js';
 import { DestinationBridge } from './apps-script-api.js';
 import { state } from './state.js';
@@ -6,7 +7,7 @@ import { initNavigation } from './navigation.js';
 import { initSetup, renderSetup } from './setup-ui.js';
 import { initDestinations, renderDestinations, syncDestinations } from './destinations-ui.js';
 import { initImport } from './import-ui.js';
-import { initOperational, renderOperational, ensureDraft, fillDraft, flushDraft } from './operational-ui.js';
+import { initOperational, renderOperational, ensureDraft, fillDraft, flushDraft, finishSessionEnd } from './operational-ui.js';
 import { initReport, renderReport } from './report-ui.js';
 let db, channel, refreshQueue = Promise.resolve();
 function fail(error) { console.error(error); toast(error?.message || 'Operasi gagal. Data belum dikonfirmasi tersimpan.', true); }
@@ -20,13 +21,23 @@ function fatal(error) {
 function network() {
   $('#network').textContent = navigator.onLine ? 'Online' : 'Offline';
   $('#network').classList.toggle('offline', !navigator.onLine);
-  if (state.ready) renderDestinations();
+  if (state.ready) { renderDestinations(); renderCheckers(); }
 }
 async function load({ restoreDraft = false, fillSession = false } = {}) {
   const snapshot = await db.snapshot();
   validateBackup({ application: 'RKEF_TICKETING', version: 1, stores: snapshot });
+  const generation = snapshot.settings.find(s => s.id === 'resetGeneration')?.value || null;
+  if (state.storageGeneration !== undefined && state.storageGeneration !== generation && db.generation !== generation) {
+    finishSessionEnd(true);
+    $('#wa-source').value = '';
+    $('#import-preview').hidden = true;
+    location.hash = 'setup';
+  }
+  state.storageGeneration = generation;
   state.records = snapshot.records; state.masters = snapshot.masters;
   state.session = snapshot.settings.find(s => s.id === 'session')?.value || null;
+  state.checkerPending = snapshot.pending.find(p => p.id === 'checker') || null;
+  state.checkerCache = snapshot.cache.find(c => c.id === 'checkers') || null;
   state.cache = snapshot.cache.find(c => c.id === 'destinations') || null;
   state.pending = snapshot.pending.find(p => p.id === 'destination') || null;
   if (restoreDraft) state.draft = snapshot.settings.find(s => s.id === 'draft')?.value || null;
@@ -34,6 +45,7 @@ async function load({ restoreDraft = false, fillSession = false } = {}) {
     state.draft = null;
     fillDraft();
   }
+  if (state.draft && state.session) state.draft.session = structuredClone(state.session);
   if (state.view === 'operasional' && !state.draft) ensureDraft();
   renderSetup({ fillSession }); renderDestinations(); renderOperational(); renderReport();
 }
@@ -67,13 +79,6 @@ async function boot() {
   initNavigation(view => { state.view = view; if (state.ready) { if (view === 'operasional') ensureDraft(); if (view === 'report') renderReport(); } });
   try {
     db = await Database.open();
-    if (!await db.get('settings', 'initialized')) {
-      await db.transaction(['settings', 'masters'], 'readwrite', s => {
-        s.masters.put({ id: 'default-day', kind: 'shift', value: 'Day', active: true, origin: 'local' });
-        s.masters.put({ id: 'default-night', kind: 'shift', value: 'Night', active: true, origin: 'local' });
-        s.settings.put({ id: 'initialized', value: true });
-      });
-    }
     const bridge = new DestinationBridge(window.RKEF_CONFIG?.appsScriptUrl);
     const ctx = { db, bridge, changed, fail, flushDraft, ensureDraft, fillDraft, renderReport };
     initSetup(ctx); initDestinations(ctx); initOperational(ctx); initImport(ctx); initReport(ctx);

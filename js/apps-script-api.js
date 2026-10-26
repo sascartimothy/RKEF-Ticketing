@@ -4,9 +4,9 @@ export function endpointURL(url) {
   return url;
 }
 let counter = 0;
-export function jsonp(url, action, timeout = 12000) {
+export function jsonp(url, action, timeout = 12000, params = {}) {
   endpointURL(url);
-  if (!['health', 'list'].includes(action)) throw Error('Action GET tidak diizinkan.');
+  if (!['health', 'list', 'listCheckers', 'checkerStatus'].includes(action)) throw Error('Action GET tidak diizinkan.');
   return new Promise((resolve, reject) => {
     const cb = '_rkef_' + Date.now() + '_' + (++counter);
     const script = document.createElement('script');
@@ -20,7 +20,9 @@ export function jsonp(url, action, timeout = 12000) {
     const timer = setTimeout(() => finish(Error('Timeout Apps Script. Periksa koneksi dan akses anonim deployment.')), timeout);
     window[cb] = data => finish(null, data);
     script.onerror = () => finish(Error('GET JSONP gagal. Cache lokal tetap tersedia.'));
-    script.src = `${url}?action=${action}&callback=${cb}&_=${Date.now()}`;
+    const query = new URLSearchParams({action, callback:cb, _:String(Date.now())});
+    for (const key of ['checker_id','request_id']) if (params[key]) query.set(key,params[key]);
+    script.src = `${url}?${query}`;
     document.head.append(script);
   });
 }

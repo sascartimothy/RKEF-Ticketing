@@ -20,7 +20,8 @@ Do not run git add, commit, push, pull, reset, clean, or any deployment command.
 - Exactly three application views: **Setup**, **Operasional**, **Report**.
 - Frontend: HTML, CSS, vanilla JS PWA; GitHub Pages at `/RKEF-Ticketing/` (relative asset paths).
 - NO Firebase and NO Google login for operators.
-- Google Sheets is for **Destination** shared master only; anonymous Apps Script bridge must pass actual phone/browser tests before operational release. UI implementation may proceed locally and must show integration errors honestly.
+- Google Sheets is for shared **Destination and Checker_Crew** masters; anonymous Apps Script bridge must pass actual phone/browser tests before operational release. UI implementation may proceed locally and must show integration errors honestly.
+- Owner decision 26 October 2026: Checker management is anonymous for every user, without login, password, access code, write key or Script Properties authorization. Preserve validation, locking, request idempotency, version conflicts, soft delete and verified read-back. Never reinitialize Checker_Crew or replace existing IDs.
 - Ritase records, local stockpile & dome options, and session data are stored in **IndexedDB per phone**; no automatic multi-phone ritase sync.
 - Operators paste WhatsApp report to initialize/verify the next shift and copy report text to hand over.
 - Stockpile/Pile ID and product/dome mappings derive from the last approved WhatsApp report plus explicitly entered local options. Never silently invent master entries.

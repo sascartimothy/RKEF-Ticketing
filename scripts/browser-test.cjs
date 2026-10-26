@@ -66,23 +66,41 @@ async function ready() {
     await cdp('Emulation.setDeviceMetricsOverride',{width:360,height:800,deviceScaleFactor:1,mobile:true});
     await cdp('Page.navigate',{url:base});await ready();
     try { console.log(await evaluate(fs.readFileSync(path.join(root,'tests/handover-reuse-browser.js'),'utf8'))); }
-    catch(error) { console.error(await evaluate("document.querySelector('#import-preview').textContent")); throw error; }
+    catch(error) { console.error(await evaluate("JSON.stringify({preview:document.querySelector('#import-preview').textContent,checker:document.querySelector('#checker-error').textContent,feedback:document.querySelector('#checker-feedback').textContent,entry:document.querySelector('#entry-error').textContent,storage:document.querySelector('#storage-error').textContent})")); throw error; }
+    // An independently loaded second tab holds its own pre-reset connection.
+    const peerTarget=await cdp('Target.createTarget',{url:'about:blank'});
+    const peerTargets=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+    const peerSocket=new WebSocket(peerTargets.find(t=>t.id===peerTarget.targetId).webSocketDebuggerUrl);
+    await new Promise((resolve,reject)=>{peerSocket.onopen=resolve;peerSocket.onerror=reject;});
+    let peerSeq=0;const peerPending=new Map();
+    const peerCommand=(method,params={})=>new Promise((resolve,reject)=>{const id=++peerSeq;peerPending.set(id,{resolve,reject});peerSocket.send(JSON.stringify({id,method,params}));});
+    peerSocket.onmessage=event=>{const m=JSON.parse(event.data);if(m.id){const p=peerPending.get(m.id);peerPending.delete(m.id);if(m.error)p?.reject(Error(m.error.message));else p?.resolve(m.result);}};
+    const peerEvaluate=async expression=>{const r=await peerCommand('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
+    try {
+      await peerCommand('Network.enable');
+      await peerCommand('Network.setBlockedURLs',{urls:['https://*','http://script.google.com/*']});
+      await peerCommand('Page.navigate',{url:base});
+      for(let i=0;i<100;i++){if(await peerEvaluate("document.readyState==='complete' && !!document.querySelector('#session-state') && !document.querySelector('#main').inert"))break;await pause(50);}
+      await peerEvaluate("(async()=>{window.resetPeerDb=await (await import('./js/database.js')).Database.open();document.querySelector('#wa-source').value='OLD WA FROM ANOTHER TAB';})()");
+      await evaluate("(async()=>{const {Database}=await import('./js/database.js');const db=await Database.open();await db.endSession(null,null);db.db.close();const c=new BroadcastChannel('rkef-ticketing');c.postMessage('changed');c.close();})()");
+      console.log(await peerEvaluate("(async()=>{for(let i=0;i<100&&document.querySelector('#wa-source').value;i++)await new Promise(r=>setTimeout(r,30));if(document.querySelector('#wa-source').value)throw Error('Peer retained stale WA');let blocked=false;try{await resetPeerDb.put('settings',{id:'old-counter',value:999});}catch(e){blocked=e.message.includes('direset');}if(!blocked)throw Error('Second tab resurrected old data');resetPeerDb.db.close();return 'PASS actual second browser tab clears stale WA and rejects writes after reset';})()"));
+    } finally {peerSocket.close();await cdp('Target.closeTarget',{targetId:peerTarget.targetId});}
     await evaluate('navigator.serviceWorker.ready.then(()=>true)');
     await cdp('Page.reload',{});await pause(500);await ready();
     console.log(await evaluate(`(async()=>{
       const {state}=await import('./js/state.js');
       for(let i=0;i<100&&!state.ready;i++)await new Promise(r=>setTimeout(r,30));
-      const expected=JSON.parse(sessionStorage.getItem('reuseExpected'));
-      if(JSON.stringify(state.session)!==JSON.stringify(expected.session))throw Error('Reload lost reused session');
+      const expected=JSON.parse(sessionStorage.getItem('totalResetExpected'));
       const {Database}=await import('./js/database.js');const db=await Database.open();
-      for(const name of ['records','imports','masters'])if(JSON.stringify(await db.all(name))!==JSON.stringify(expected[name]))throw Error('Reload changed reused '+name);
-      document.querySelector('#checker-form').elements.checker.value='REUSE CURRENT CHECKER';
-      document.querySelector('#checker-form').requestSubmit();
-      for(let i=0;i<100&&state.session.checker!=='REUSE CURRENT CHECKER';i++)await new Promise(r=>setTimeout(r,30));
-      if((await db.get('settings','session')).value.checker!=='REUSE CURRENT CHECKER')throw Error('Reused session checker not durable');
+      if(state.session||state.draft||state.records.length||document.querySelector('#wa-source').value)throw Error('Reload restored operational data');
+      if(JSON.stringify(await db.all('cache'))!==JSON.stringify(expected.cache))throw Error('Reload lost shared master caches');
+      const el=document.querySelector('#wa-source');el.value=expected.source;el.dispatchEvent(new Event('paste',{bubbles:true}));
+      for(let i=0;i<200&&state.sessionTransition;i++)await new Promise(r=>setTimeout(r,30));
+      if(state.session?.nextRitase!=='46315-084'||state.records.length!==83||!state.masters.some(m=>m.stockpile==='RESET_STOCK'))throw Error('New WA blocked by pre-reset history or missing mapping');
+      if(!document.querySelector('#import-preview').classList.contains('success'))throw Error('New WA not successful');
       await db.restore(JSON.parse(sessionStorage.getItem('reuseBaseline')),'replace');db.db.close();
-      sessionStorage.removeItem('reuseExpected');sessionStorage.removeItem('reuseBaseline');
-      return 'PASS actual browser reload preserves reused session/history; manual checker saved';
+      sessionStorage.removeItem('totalResetExpected');sessionStorage.removeItem('reuseBaseline');
+      return 'PASS actual reload remains empty with shared caches; new 83-row WA creates fresh mapping/session without old OD-06 conflicts';
     })()`));
     await cdp('Page.reload',{});await pause(500);await ready();
     const suite=fs.readFileSync(path.join(root,'tests/browser-suite.js'),'utf8');
@@ -90,8 +108,27 @@ async function ready() {
     try { result=await evaluate(suite); }
     catch(error) { console.error(await evaluate("JSON.stringify({toast:document.querySelector('#toast')?.textContent,confirm:document.querySelector('#confirm-dialog')?.textContent,preview:document.querySelector('#import-preview')?.textContent})"));throw error; }
     for(const line of result)console.log(line);
+    console.log(await evaluate(fs.readFileSync(path.join(root,'tests/checkers-browser.js'),'utf8')));
+    await evaluate(`(async()=>{
+      const {Database}=await import('./js/database.js');const db=await Database.open();
+      sessionStorage.setItem('checkerPendingBaseline',JSON.stringify(await db.backup()));
+      await db.beginCheckerRequest({id:'checker',createdAt:new Date().toISOString(),payload:{action:'addChecker',name:'TEST PENDING RELOAD',expected_version:'a'.repeat(64),request_id:'chk_reload_pending_0123456789'}});
+      db.db.close();
+    })()`);
+    await cdp('Page.reload',{});await pause(400);await ready();
+    console.log(await evaluate(`(async()=>{
+      const {state}=await import('./js/state.js');const {Database}=await import('./js/database.js');
+      if(state.checkerPending?.payload.request_id!=='chk_reload_pending_0123456789')throw Error('Checker pending ID lost on reload');
+      location.hash='setup';document.querySelector('#edit-checkers').click();
+      if(!document.querySelector('#retry-checker')||!document.querySelector('#add-checker').disabled)throw Error('Pending Checker retry controls missing');
+      document.querySelector('#checker-cancel').click();
+      const db=await Database.open();await db.restore(JSON.parse(sessionStorage.getItem('checkerPendingBaseline')),'replace');db.db.close();sessionStorage.removeItem('checkerPendingBaseline');
+      return 'PASS actual reload preserves unresolved Checker request_id and recovery controls without new automatic mutation';
+    })()`));
+    await cdp('Page.reload',{});await pause(400);await ready();
+
     // Real Chromium editing pipeline (not dispatchEvent-only input assertions).
-    await evaluate(`(async()=>{const {state}=await import('./js/state.js');window.nativeDraft=structuredClone(state.draft);const {ensureDraft}=await import('./js/operational-ui.js');ensureDraft(true);location.hash='operasional';document.querySelector('#entry-form [name=time]').focus();})()`);
+    await evaluate(`(async()=>{const {state}=await import('./js/state.js');window.nativeDraft=structuredClone(state.draft);const {ensureDraft}=await import('./js/operational-ui.js');ensureDraft(true);location.hash='operasional';for(let i=0;i<100&&document.querySelector('#view-operasional').hidden;i++)await new Promise(r=>setTimeout(r,10));document.querySelector('#entry-form [name=time]').focus();})()`);
     for (const digit of '072035') await cdp('Input.insertText',{text:digit});
     console.log(await evaluate(`(async()=>{const {state}=await import('./js/state.js');const t=document.querySelector('#entry-form [name=time]');if(t.value!=='072035'||state.draft.timeMode!=='manual')throw Error('Native first-digit replacement: '+t.value);t.blur();if(t.value!=='07.20.35')throw Error('Native blur format');return 'PASS native Chromium first-digit replacement and incremental numeric typing';})()`));
     await evaluate(`(()=>{const t=document.querySelector('#entry-form [name=time]');t.focus();t.setSelectionRange(3,5);})()`);
@@ -121,6 +158,13 @@ async function ready() {
     console.log(await evaluate(`(()=>{const cards=[...document.querySelectorAll('#view-setup article')];if(document.documentElement.scrollWidth>360)throw Error('Setup overflow at 360px');for(let i=1;i<cards.length;i++)if(cards[i].getBoundingClientRect().top<cards[i-1].getBoundingClientRect().bottom)throw Error('Setup cards not vertical');return 'PASS Setup vertical order and no horizontal overflow at 360px';})()`));
     const mobileLayout=await cdp('Page.getLayoutMetrics');
     fs.writeFileSync(path.join(qa,'setup-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width:360,height:mobileLayout.cssContentSize.height,scale:1}})).data,'base64'));
+    await evaluate("document.querySelector('#choose-checkers').click()");
+    await pause(100);
+    fs.writeFileSync(path.join(qa,'checker-checklist-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+    await evaluate("document.querySelector('#checker-cancel').click()");await pause(50);
+    await evaluate("document.querySelector('#edit-checkers').click()");await pause(100);
+    fs.writeFileSync(path.join(qa,'checker-management-360.png'),Buffer.from((await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+    await evaluate("document.querySelector('#checker-cancel').click()");await pause(50);
     await evaluate("location.hash='operasional'");await pause(200);
     await evaluate("document.querySelector('#toast').hidden=true;window.scrollTo(0,0)");
     const operationLayout=await cdp('Page.getLayoutMetrics');

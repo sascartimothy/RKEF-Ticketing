@@ -37,8 +37,9 @@
         <article class="card" id="session-card">
           <div class="card-heading"><h2>Sesi operasional</h2><span class="badge subtle" id="session-state">Belum aktif</span></div>
           <div id="session-details"></div>
-          <form id="checker-form" hidden><label>Nama Checker<input name="checker" list="checker-options" maxlength="100" required autocomplete="off"></label><button type="submit" class="secondary">Simpan checker</button></form>
-          <div id="checker-feedback" role="status" hidden></div>
+          <div id="checker-control" hidden><label for="choose-checkers">Nama Checker</label><button id="choose-checkers" class="secondary full" aria-haspopup="dialog">Pilih Checker</button></div>
+          <div class="button-row"><button id="edit-checkers" class="secondary">Edit Checker</button><button id="sync-checkers" class="secondary">Sync List Checker</button></div>
+          <div id="checker-feedback" class="alert" role="status"></div>
           <p class="hint">Isi checker sebelum menyimpan ritase baru. Sesi diperbarui setelah handover valid tersimpan. Nomor berikutnya ditetapkan atomik saat ritase tersimpan.</p>
         </article>
           <article class="card"><div class="card-heading"><div><p class="eyebrow">MASTER BERSAMA</p><h2>Destination</h2></div><span id="destination-count" class="number-badge">0</span></div>
@@ -47,7 +48,7 @@
             <div id="destination-list" class="destination-list"></div>
             <hr><form id="destination-form"><label>Tambah Destination ke Sheets<input name="name" placeholder="Nama Destination baru" minlength="2" maxlength="80" required></label><button class="primary full" type="submit">Tambah & verifikasi</button></form>
             <div id="pending-destination" class="alert warning" hidden></div>
-            <p class="hint">Hanya Destination yang dibagikan. Ritase dan checker tetap lokal. Penambahan memerlukan koneksi dan read-back.</p>
+            <p class="hint">Master Destination dan Checker dibagikan. Ritase dan pilihan Checker shift tetap lokal. Penambahan memerlukan koneksi dan read-back.</p>
           </article>
         <article class="card note-card" id="version-card">
           <p id="app-version"></p>
@@ -121,6 +122,10 @@
 <label>Waktu Transaksi (HH.mm.ss)<input name="time" inputmode="numeric" autocomplete="off" placeholder="07.20.00" maxlength="8" required></label>
 <label>Note <span class="optional">opsional</span><input name="note" maxlength="1000" placeholder="Catatan transaksi"></label><div id="correction-error" class="alert danger" role="alert" hidden></div><div class="dialog-actions"><button type="button" id="cancel-correction" class="secondary">Batal</button><button type="submit" class="primary">Simpan koreksi</button></div></fieldset></form></dialog>
   <dialog id="audit-dialog"><h2>Jejak transaksi</h2><div id="audit-content"></div><form method="dialog"><button class="secondary">Tutup</button></form></dialog>
+  <dialog id="checker-dialog" aria-labelledby="checker-title"><h2 id="checker-title">Pilih Checker</h2>
+    <div id="checker-body"></div><p id="checker-error" class="alert danger" role="status" hidden></p>
+    <div class="dialog-actions"><button id="checker-cancel" class="secondary">Cancel</button><button id="checker-ok" class="primary">OK</button></div>
+  </dialog>
   <datalist id="scale-options"></datalist><datalist id="checker-options"></datalist><datalist id="dt-options"></datalist><datalist id="stock-options"></datalist><datalist id="pile-options"></datalist><datalist id="source-options"></datalist><datalist id="product-options"></datalist><datalist id="dome-options"></datalist><datalist id="destination-options"></datalist>
   <script src="./config.js"></script><script type="module" src="./js/app.js"></script>
 </body>

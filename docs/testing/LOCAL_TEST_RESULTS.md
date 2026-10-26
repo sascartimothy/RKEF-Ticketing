@@ -1,5 +1,41 @@
 # Hasil pengujian lokal
 
+## Reset TOTAL operasional v1.1.1 (26 Oktober 2026)
+
+Keputusan final menggantikan seluruh kontrak reset lama di catatan historis berikut. Akar error OD-06: reset lama menyisakan histori impor/receipt, mapping dan record sesi/timbangan lain; validasi identitas bisnis tetap membaca data tersebut. Setup juga memproses ulang WA lama.
+
+Implementasi kini membersihkan `records`, `masters`, `settings`, `audit`, `imports`, `pending` dan seluruh cache selain `checkers`/`destinations`, dalam satu transaksi atomik. Hanya UUID teknis `settings.resetGeneration` baru ditulis, tanpa audit/history reset. Setiap write mengunci settings dan memeriksa generasi koneksi; tab lama wajib reload. Tidak memakai deleteDatabase. Default master lokal tidak dibuat ulang saat boot. Textarea kosong dan Setup Belum aktif; tidak ada aktivasi ulang otomatis.
+
+- PASS IndexedDB nyata, profil/origin sementara: histori impor BDM dan ONI, sesi, draft, counter, audit, tombstone, metadata dan pending sintetis; injeksi kegagalan setelah penghapusan membuktikan rollback semua store dan dua cache.
+- PASS UI satu popup, Cancel mempertahankan database/WA, autosave tertunda dituntaskan, reset terkonfirmasi mengosongkan Operasional/Report/WA. Cache 17 Checker dan Destination utuh; cache lain dihapus. Reset tanpa sesi tetap membersihkan data.
+- PASS tab browser kedua nyata membersihkan teks WA lama melalui broadcast dan menolak write sesudah reset. Koneksi stale menolak write generik, saveSession, autosave, saveRecord dan impor setelah reset; tidak memulihkan pekerjaan lama.
+- PASS reload browser aktual tetap tanpa sesi/draft/records/WA dan dua cache tetap utuh. Paste baru 83 BDM `46315-001` sampai `083` membuat 83 histori, mapping RESET_STOCK dan sesi NS/next `46315-084` tanpa OD-06 dari histori sebelum reset.
+- PASS regresi checklist multi-Checker OK/Cancel dan pengelolaan anonim/read-back mock, Destination, Opsi B, AUTO/MANUAL, Report 605 ritase/Pile ID, WA 11 TAB, offline, 360px/1280px dan transisi worker dev.
+
+`npm.cmd test`: PASS 49 tes Node plus Apps Script mock/static checks. `npm.cmd run test:browser`: PASS Chromium desktop headless dengan request eksternal diblokir. Schema/database/storage identity dan versi tetap v1.1.1; cache shell `rkef-shell-v1.1.1-total-reset`. `npm.cmd run check:docs` dan `git diff --check`: PASS. Screenshot ignored di `private-data/qa/`. Tidak menyentuh database browser operasional, Google Sheets, Apps Script atau deployment. Android/Chrome HP dan integrasi Google live tetap NOT VERIFIED.
+
+
+## Reset siklus persiapan dan handover OD-06 (26 Oktober 2026, historis - DIGANTIKAN reset total)
+
+Keputusan terbaru menggantikan catatan lama yang mengosongkan textarea dan memakai seluruh persiapan receipt sebagai pembatas setelah reset. Versi tetap v1.1.1; cache produksi `rkef-shell-v1.1.1-reset-cycle`. Reset tetap menghapus permanen ritase lokal sesi aktif; tidak tersedia pemulihan metadata lengkap melalui UI.
+
+Akar masalah: `importHandover` membandingkan target dengan seluruh `imports[].session`, sedangkan reset hanya menghapus `settings.session` dan draft. Receipt lama tetap memblokir target lebih rendah. Setup juga selalu mengosongkan WA. Sekarang `settings.handoverCycle` memberi UUID batas reset yang persisten beserta persiapan per timbangan; arsip sebelum batas tidak menjadi pembatas urutan. Guard sesi/draft, nomor bisnis, integritas receipt, mapping dan konflik record tetap berlaku. UI memeriksa expectedSession/expectedCycle dalam transaksi.
+
+Pengujian data sintetis pada profil browser sementara, request eksternal diblokir:
+
+- PASS reset ritase lokal, tombstone/audit, preservasi impor/receipt/master/cache/konfigurasi dan scope timbangan/shift/tanggal/aktivasi lain; cancel, autosave drain, rollback setelah write, stale koneksi dan konflik draft antartab.
+- PASS receipt tanggal lebih baru tetap diarsipkan, reset lalu laporan lama valid aktif tanpa duplikasi. Batas reset bertahan saat koneksi IndexedDB dibuka ulang dan saat reload browser aktual sebelum handover. Siklus usang ditolak, kemunduran dalam siklus berjalan tetap ditolak.
+- PASS paste setelah reset, WA sudah ditempel sebelum reset, cancel mempertahankan teks/database, pemrosesan otomatis setelah konfirmasi, checker kosong, reset tanpa WA tidak membuat sesi dummy. WA rusak tetap tampil dengan kesalahan validasi asli; konflik nyata di luar reset tetap ditolak.
+- PASS DS ke NS pada tanggal sama dan nomor terakhir + 1; NS ke DS tanggal berikutnya mulai 001; BDM/ONI independen dan campuran ditolak; 83 baris identik tidak menggandakan histori.
+- PASS regresi Multi-Checker (OK/Cancel, Add/Edit/soft-delete, cache offline, sync/read-back mock), Opsi B, AUTO/MANUAL, koreksi, Report 605 ritase/rekap Pile ID, WA 11 TAB/kolom keenam kosong, offline produksi, 360px/1280px dan transisi worker dev.
+
+Perintah: `npm.cmd test` PASS (49 tes Node, assertion Apps Script mock, workspace/docs); `npm.cmd run test:browser` PASS (Chromium desktop headless); `npm.cmd run check:docs` dan `git diff --check` diperiksa ulang sesudah dokumentasi. Screenshot lokal: `private-data/qa/` (ignored).
+
+File tugas: `js/database.js`, `js/setup-ui.js`, `js/import-ui.js`, `sw.js`, `tests/handover-reuse-browser.js`, `tests/browser-suite.js`, `scripts/browser-test.cjs`, README, spesifikasi operasional, prompt development dan dokumen ini. Perubahan lokal Multi-Checker existing dipertahankan. Tidak menyentuh Apps Script/Sheets dalam tugas ini. Branch main, tanpa staging/commit/push/deployment.
+
+Batas verifikasi: bukan Android/Chrome HP, WhatsApp/Excel aktual, clipboard/download HP atau Google live. Reset dan aktivasi dua transaksi terpisah: jika aktivasi gagal setelah reset berhasil, sesi tetap nonaktif, teks/kesalahan dipertahankan dan batas reset tersedia untuk retry. Reload tidak mengimpor textarea secara otomatis.
+
+
 ## Report Pile ID dan Laporan WhatsApp v1.1.1 — 21 Oktober 2026
 
 Keputusan owner: **Informasi Sesi → Rekap Ritase per Pile ID + TOTAL → Laporan WhatsApp**, tanpa delapan filter dan tanpa card/alur Backup/Restore JSON pengguna (termasuk recovery UI). Checker hanya identitas sesi. Sumber Report seluruh ritase lokal aktif dengan tanggal/shift/timbangan, handover dan aktivasi sesuai; tidak menghitung histori impor, sesi lain/reset atau transaksi terhapus. API database internal tetap kompatibel; tidak ada perubahan schema v1, penghapusan data operator, Git mutation atau deployment.
@@ -259,3 +295,56 @@ Pemeriksaan daftar file terlacak untuk direktori data/backup/export serta pola k
 - [ ] Owner meninjau file repository untuk publikasi root, mengatur Pages branch `main` + `/ (root)`, dan memverifikasi URL live serta penerimaan operasional.
 
 `apps-script/Code.gs` tetap salinan existing. Perubahan file lokal tidak memperbarui deployment Google. Tidak ada Git mutation atau deployment yang dijalankan. Lihat [struktur dan batas hosting](../architecture/PROJECT_STRUCTURE.md#hosting).
+
+## Multi-Checker — 26 Oktober 2026, v1.1.1
+
+**Catatan historis implementasi pertama.** Persyaratan otorisasi/key dan schema tujuh kolom berikut telah digantikan keputusan anonim owner pada bagian terbaru di bawah. Hasil lama bukan bukti kontrak deployment terbaru.
+
+Implementasi lokal menambah checklist multi-select dalam card Sesi operasional existing, popup Edit/Add/Hapus dan Sync List Checker. Tidak ada card/view baru. Backend lokal menambah Checker_Crew; Destination tetap kontrak existing. Endpoint live tidak diperbarui atau ditulis selama tes.
+
+| Area | Bukti lokal / hasil |
+|---|---|
+| Checklist, multi-select, OK/Cancel | PASS DOM Chromium 360px, pilihan tersimpan, Cancel tidak mengubah sesi |
+| Sesi, counter, histori | PASS pemilihan tidak membuat sesi/mengubah nomor/record; transaksi abort rollback penuh; stale tab ditolak |
+| Draft | PASS pilihan sesi dan identitas draft atomik; nilai dirty draft dipertahankan |
+| Add/Edit/Hapus master | PASS popup nyata dengan Apps Script transport mock; request/version/status/list read-back; soft delete |
+| Validasi | PASS kosong/formula/control/HTML/duplikat; schema/ID/version salah ditolak |
+| Sync/cache/offline | PASS fresh list tersimpan atomik; kegagalan mempertahankan snapshot; cache dapat dipilih offline, mutasi offline ditahan |
+| POST/read-back/konflik | PASS opaque POST tidak dianggap sukses, request ID salah/versi peer/race status-list ditolak; backend auth fail-closed dan stale expected_version ditolak |
+| Histori legacy/multi | PASS string lama tetap terbaca; master edit/delete tidak mengganti pilihan sesi atau histori; koreksi setelah pilihan berganti mempertahankan Checker/sourceSnapshot lama |
+| Report/WA | PASS seluruh nama sesi ditampilkan; rekap tetap Pile ID; TSV tetap 11 kolom dengan kolom keenam kosong |
+| Regresi | PASS Destination pending/read-back, handover/reset/reuse, Option B, live clock, backup internal, offline reload dan Report 605 ritase |
+| Versi/layout | PASS v1.1.1; cache shell diperbarui dengan suffix checkers; 360px/1280px tanpa overflow |
+| Android/Chrome HP dan Google live | **NOT VERIFIED** |
+
+Perintah: `npm.cmd test` (44 tes Node + kontrak Apps Script mock + workspace/docs), `npm.cmd run test:browser` (profil/server/IndexedDB sintetis terisolasi, trafik Google diblokir), `npm.cmd run check:docs`, `git diff --check`. Node portable dari `D:\Workspace\tool\nodejs` digunakan. Screenshot lokal di `private-data/qa/`: setup-360.png, checker-checklist-360.png, checker-management-360.png. Screenshot memakai data TEST sintetis.
+
+Fixture regresi NS kini memakai jam sintetis tanggal operasinya sendiri (20 Oktober), agar hasil tidak bergantung pada tanggal komputer yang menjalankan tes. Ini hanya jam dalam fixture, bukan pelonggaran validasi tanggal NS produksi.
+
+Gate owner: pastikan tab Checker_Crew memiliki header yang cocok, set Script Property secret, redeploy Apps Script sendiri, uji key salah/benar, JSONP/form/read-back anonim dari HP, dua perangkat melakukan edit bersamaan dan operasi offline. Kode lokal tidak membuktikan deployment sudah mendukung Checker. Lihat [kontrak API Checker](../development/CHECKER_API.md). Tidak ada UI backup metadata lengkap yang ditambahkan.
+
+File perubahan Multi-Checker (status akhir lokal: main, 20 modified + 5 untracked, tidak distage/commit/deploy):
+
+- UI/model: `index.html`, `styles.css`, `js/app.js`, `js/setup-ui.js`, `js/checker-ui.js` (baru), `js/checkers.js` (baru), `js/state.js`, `js/database.js`, `js/validation.js`, `js/operational-ui.js`, `js/apps-script-api.js`.
+- Backend/offline/server: `apps-script/Code.gs`, `sw.js`, `scripts/public-files.cjs`.
+- Tes: `scripts/browser-test.cjs`, `tests/browser-suite.js`, `tests/handover-reuse-browser.js`, `tests/test_apps_script.cjs`, `tests/checkers.test.js` (baru), `tests/checkers-browser.js` (baru).
+- Dokumentasi: `README.md`, `docs/README.md`, `docs/requirements/RKEF_OPERATIONAL_SPEC.md`, `docs/testing/LOCAL_TEST_RESULTS.md`, `docs/development/CHECKER_API.md` (baru).
+
+`config.js`, `package.json`, nama database/schema dan manifest identity tidak diubah. Screenshot hanya artefak lokal ignored. Tidak ada perintah mutasi Git atau deployment dijalankan.
+
+## Perbaikan Checker anonim — v1.1.1
+
+Keputusan owner terbaru: tanpa kode akses/password/key/Script Properties otorisasi. Popup checklist/manajemen existing dipertahankan; hanya input akses dihapus dan kontrol pemulihan request ditampilkan bila hasilnya belum pasti. Tab existing enam kolom, ID spreadsheet, URL Web App dan ID Checker tidak diinisialisasi ulang.
+
+GET live read-only pada 26 Oktober 2026 mengonfirmasi count 17, revision per baris, list_version dan status datar. Seluruh respons 17 Checker juga diterima oleh validator/CheckerBridge.list frontend terbaru tanpa POST. GET by request_id sintetis yang tidak ada mengembalikan NOT_FOUND. Tidak ada POST live dilakukan. Owner kemudian mengonfirmasi bahwa hash list_version dipakai sebagai expected_version untuk semua operasi Add/Edit/Hapus. Implementasi lokal sudah sesuai dan tidak memerlukan perubahan runtime. Algoritme hash byte-identik dan seluruh source deployment belum diverifikasi; konfirmasi kontrak bukan bukti POST live.
+
+Pengujian lokal:
+
+- `npm.cmd test`: PASS, 49 tes Node, kontrak backend Destination/Checker mock, workspace/public/offline inventory dan docs. Tidak ada credential dalam payload Add/Edit/Delete; ID Add ditetapkan backend; header A:F dan revision/list token, lock, validasi, duplikat, replay/reuse, stale token, soft delete dan status datar diuji.
+- `npm.cmd run test:browser`: PASS Chromium 360px/1280px, checklist multi/OK/Cancel, form POST anonim nyata dengan submit dimock, filter origin/request_id untuk pesan error, popup Add/Edit/Delete, read-back independen, pending durable, retry ID sama tanpa POST kedua ketika receipt sudah ada, konflik memuat snapshot terbaru, penolakan nama/reuse, gagal jaringan tidak menghapus cache, offline dan histori/draft/counter/Report/WA/Destination tetap aman.
+- Reload browser nyata mempertahankan request_id pending dan kontrol recovery tanpa pengiriman mutasi otomatis.
+- `npm.cmd run check:docs`: PASS (11 dokumen, 69 tautan lokal). `git diff --check`: PASS.
+
+Snapshot/counter/IndexedDB schema tetap. Cache version lama dibaca untuk offline, tidak dihapus; Sync memberi revision dan listVersion terbaru. Pending menggunakan store existing. Tidak ada branch/staging/commit/push/deployment atau penulisan Sheets live.
+
+Semantik expected_version telah dikonfirmasi owner. POST Google, error iframe live, Android/Chrome nyata dan konflik dua HP: **NOT VERIFIED**. Deployment owner sudah dilaporkan, tetapi file lokal bukan bukti redeploy. [Kontrak API](../development/CHECKER_API.md) menjelaskan batas ini.

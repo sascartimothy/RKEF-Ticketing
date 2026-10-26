@@ -18,8 +18,15 @@ export async function prepareSessionEnd() {
 }
 export function finishSessionEnd(committed = false) {
   if (committed) {
-    state.session = null; state.draft = null; draftFailed = false;
+    state.session = null; state.draft = null; draftFailed = false; expanded = false;
+    $('#history-search').value = '';
+    $('#destination-form').reset();
+    $('#toast').hidden = true;
     $('#correction-dialog').close(); correction = null;
+    $('#correction-form').reset();
+    $('#audit-dialog').close(); $('#audit-content').replaceChildren();
+    $('#checker-dialog').close();
+    for (const details of document.querySelectorAll('main details')) details.open = false;
     fillDraft();
   }
   state.sessionTransition = false;
@@ -127,7 +134,7 @@ function approvedMappings(data, original = null) {
 }
 async function save(form, original = null, captured = null) {
   const draft = clone(state.draft);
-  const data = { ...values(form), ...(original ? Object.fromEntries(['operationDate', 'shift', 'scale', 'checker'].map(k => [k, original[k]])) : draft.session), id: original?.id || draft.recordId };
+  const data = { ...values(form), ...(original ? Object.fromEntries(['operationDate', 'shift', 'scale', 'checker', 'checkers'].filter(k => original[k] !== undefined).map(k => [k, original[k]])) : draft.session), id: original?.id || draft.recordId };
   if (!original && captured) {
     data.time = captured.time;
     data.openedTime = draft.sourceTime; data.openedDate = draft.clockDate;

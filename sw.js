@@ -1,9 +1,9 @@
 /* Only same-origin, explicitly enumerated app shell assets. Sheets is never cached here. */
-const VERSION = 'rkef-shell-v1.1.1-report-piles';
+const VERSION = 'rkef-shell-v1.1.1-total-reset';
 const BASE = new URL('./', self.location.href);
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './manifest.webmanifest',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png',
-  './js/app.js', './js/database.js', './js/time-date.js', './js/validation.js', './js/state.js',
+  './js/checkers.js', './js/checker-ui.js', './js/app.js', './js/database.js', './js/time-date.js', './js/validation.js', './js/state.js',
   './js/master-data.js', './js/wa-parser.js', './js/wa-exporter.js', './js/apps-script-api.js',
   './js/ui-components.js', './js/navigation.js', './js/setup-ui.js', './js/operational-ui.js',
   './js/import-ui.js', './js/destinations-ui.js', './js/report-ui.js'].map(p => new URL(p, BASE).href);

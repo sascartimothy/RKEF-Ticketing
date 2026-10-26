@@ -67,7 +67,7 @@
   const set=(form,values)=>{for(const [k,v] of Object.entries(values))if(form.elements[k])form.elements[k].value=v;if('time' in values)form.elements.time.dispatchEvent(new Event('input',{bubbles:true}));};
   const input=el=>el.dispatchEvent(new Event('input',{bubbles:true}));
   const submit=selector=>$(selector).requestSubmit();
-  const seedDb=await Database.open();
+  let seedDb=await Database.open();
   await seedDb.saveMaster({kind:'stock',stockpile:'TEST_STOCK',pileId:'TEST_PILE',sourceCode:'6'});
   await seedDb.saveMaster({kind:'product',productCode:'5',dome:'TEST_DOME',destination:'TEST DESTINATION'});
   await seedDb.saveSession(session);
@@ -153,7 +153,8 @@
   await paste(numbered);
   assert($('#import-preview').classList.contains('danger'),'dirty draft was replaced');
   equal(state.session,originalSession,'draft conflict changed session');
-  // Session end uses one modal, drains autosave and preserves every historical store.
+  // Total reset uses one modal and drains autosave.
+  $('#wa-source').value = ''; // Explicit reset-without-WA scenario; pending WA must never be reprocessed.
   const button = $('#new-session'), card = $('#handover-card');
   assert(card.contains(button) && button.compareDocumentPosition($('#wa-source')) & Node.DOCUMENT_POSITION_FOLLOWING, 'new session button position');
   assert($('#handover-session').compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING, 'active summary position');
@@ -174,7 +175,7 @@
   Database.prototype.transaction = function(names,mode,work) {
     return transactionReset.call(this,names,mode,async stores=>{
       const result = await work(stores);
-      if(mode==='readwrite' && names.length===3 && names.includes('records') && names.includes('audit') && names.includes('settings')) throw Error('TEST reset abort');
+      if(mode==='readwrite' && names.length===7 && names.includes('records') && names.includes('audit') && names.includes('settings')) throw Error('TEST reset abort');
       return result;
     });
   };
@@ -201,17 +202,17 @@
   equal(await seedDb.get('settings','session'),undefined,'session marker retained');
   equal(await seedDb.get('settings','draft'),undefined,'persisted draft retained');
   const resetAfter = await seedDb.snapshot();
-  equal(resetAfter.records,resetBefore.records.filter(r=>r.origin!=='local' || r.operationDate!==originalSession.operationDate || r.shift!==originalSession.shift || r.scale!==originalSession.scale || r.numberingSession!==originalSession.handoverId),'reset local deletion');
-  for(const store of ['masters','imports','cache','pending']) equal(resetAfter[store],resetBefore[store],store+' changed by reset');
-  equal(resetAfter.audit.filter(a=>a.action!=='session-reset').sort((a,b)=>a.id.localeCompare(b.id)),resetBefore.audit.filter(a=>!resetBefore.records.some(r=>r.id===a.recordId && !resetAfter.records.some(x=>x.id===r.id))).sort((a,b)=>a.id.localeCompare(b.id)),'audit history lost');
-  assert(resetAfter.audit.some(a=>a.action==='session-reset'),'missing session end audit');
-  equal($('#wa-source').value,'','source not cleared'); assert($('#import-preview').textContent.startsWith('Sesi sebelumnya telah dihapus.'),'ready status');
-  try { await seedDb.saveDraft(memoryBefore); assert(false,'stale tab recreated draft'); } catch(e) { assert(e.message.includes('Sesi draft'),'stale autosave error'); }
+  for(const store of ['records','masters','imports','pending','audit']) equal(resetAfter[store],[],store+' survived total reset');
+  equal(resetAfter.cache, resetBefore.cache.filter(c=>['checkers','destinations'].includes(c.id)), 'shared caches changed');
+  equal($('#wa-source').value,'','source not cleared'); assert($('#import-preview').textContent.startsWith('Seluruh data operasional lokal telah dihapus.'),'ready status');
+  try { await seedDb.saveDraft(memoryBefore); assert(false,'stale tab recreated draft'); } catch(e) { assert(e.message.includes('direset'),'stale autosave error'); }
   equal(await seedDb.get('settings','draft'),undefined,'stale autosave restored draft');
   const resetBackup = await seedDb.backup(); (await import('./js/database.js')).validateBackup(resetBackup);
-  const noopBefore = await seedDb.snapshot(); button.click(); await until(()=>!button.disabled,'empty reset');
-  assert(!$('#confirm-dialog').open,'empty reset requested confirmation'); equal(await seedDb.snapshot(),noopBefore,'empty reset wrote data');
-  results.push('PASS new session button/modal at 360px, cancel, atomic failure rollback, drained autosave, stale tab rejection, deleted active local records/audits, preserved masters/cache/receipts/other history and no-op reset');
+  const noopBefore = await seedDb.snapshot(); button.click(); await until(()=>$('#confirm-dialog').open,'empty reset confirmation');
+  $('#confirm-ok').click(); await until(()=>!button.disabled,'empty reset');
+  equal((await seedDb.snapshot()).records,[],'empty reset restored history');
+  seedDb.db.close(); seedDb = await Database.open();
+  results.push('PASS new session button/modal at 360px, cancel, atomic failure rollback, drained autosave, stale tab rejection, deleted active local records/audits, preserved only shared caches and fenced stale writes');
   // Typing and restoring source values must never import.
   const fullReport=Array.from({length:83},(_,i)=>numbered.replace('46315-001',`46315-${String(i+1).padStart(3,'0')}`).replace('06.59',['7.2','7.20','7.23','8.2','10.3','13.3','15','15.00','16.4'][i%9])).join('\n');
   $('#wa-source').value=fullReport; input($('#wa-source')); await wait(60);
@@ -236,7 +237,7 @@
   equal($('#import-preview').textContent,'Handover berhasil. Sesi operasional telah diaktifkan.','handover success status');
   equal(state.session.scale,'ONI','detected scale');equal(state.session.nextRitase,'46315-084','preparation number');
   assert(!state.session.ritaseNumber,'session allocated permanent number');
-  assert(state.masters.some(m=>m.stockpile==='TEST_STOCK'&&m.origin==='local'),'local master lost');
+  assert(!state.masters.some(m=>m.stockpile==='TEST_STOCK'&&m.origin==='local'),'old local master survived reset');
   const importedRecord=state.records.find(r=>r.dtNo==='HANDOVER_TEST' && r.ritaseNumber===1);
   equal(importedRecord.ritaseNumber,1,'source sequence lost');equal(importedRecord.rawSource,fullReport.split('\n')[0],'source lost');equal(importedRecord.sourceTime,'7.2','raw time lost');equal(importedRecord.time,'07.20','time meaning changed');
   assert(!importedRecord.checker,'invented checker');
@@ -250,7 +251,15 @@
   const invalidMixed=numbered+'\n'+numbered.replace('46315-001','46315-002').replace('ONI','BDM');
   try{await seedDb.importHandover({source:invalidMixed,decisions:{complete:true}});assert(false,'mixed report stored');}catch(e){assert(e.message.includes('tidak valid'),'mixed error');}
   equal(await seedDb.snapshot(),snapshotBefore,'mixed report changed database');
-  $('#checker-form').elements.checker.value='TEST CURRENT CHECKER';submit('#checker-form');
+  await (async () => {
+    const {state} = await import('./js/state.js'); const {Database} = await import('./js/database.js');
+    const db = await Database.open();
+    const cache = {id:'checkers',syncedAt:new Date().toISOString(),values:[{checker_id:'CHK-test-picker',name:'TEST CURRENT CHECKER',is_active:true,version:1,request_id:''}]};
+    await db.put('cache',cache); db.db.close(); state.checkerCache = cache;
+    document.querySelector('#choose-checkers').click();
+    for (const input of document.querySelectorAll('#checker-body input[type=checkbox]')) input.checked = input.dataset.index === '0';
+    document.querySelector('#checker-ok').click();
+  })();
   await until(()=>state.session?.checker==='TEST CURRENT CHECKER','manual checker');
   equal((await seedDb.get('settings','session')).value.checker,'TEST CURRENT CHECKER','checker durability');
   assert(state.draft.session.checker==='TEST CURRENT CHECKER','draft checker stale');
@@ -302,14 +311,15 @@
   equal(await isolated.snapshot(),withPeerDraft,'peer conflict changed data');
   await isolated.endSession(beforeReplay,pendingDraft);
   const endedSnapshot = await isolated.snapshot();
-  assert((await isolated.importHandover({source:bdmSource})).already,'reset removed import identity');
+  assert(!(await isolated.importHandover({source:bdmSource})).already,'reset retained import identity');
   const replayedSnapshot = await isolated.snapshot();
-  for (const name of ['records','imports','masters']) equal(replayedSnapshot[name],endedSnapshot[name],name+' duplicated by reuse');
+  equal(endedSnapshot.records,[],'total reset retained history');
+  equal(replayedSnapshot.records.length,83,'fresh import history missing');
   equal(replayedSnapshot.settings.find(s=>s.id==='session').value.nextRitase,'46315-084','reuse preparation');
   const reopen = await Database.open(indexedDB,isolated.db.name);
   equal((await reopen.get('settings','session')).value.nextRitase,'46315-084','reopen lost reused session');
   try { await resetPeer.saveDraft(pendingDraft); assert(false,'peer recreated stale draft'); }
-  catch(e) { assert(e.message.includes('Sesi draft'),'peer autosave error'); }
+  catch(e) { assert(e.message.includes('direset'),'peer autosave error'); }
   await isolated.put('settings',{id:'draft',value:{dirty:true,session:(await isolated.get('settings','session')).value}});
   const dirtyReplay = await isolated.snapshot();
   try { await isolated.importHandover({source:bdmSource}); assert(false,'receipt bypassed dirty draft'); }
@@ -399,7 +409,15 @@
   isolated.db.close();
 
   location.hash='setup';await until(()=>!$('#view-setup').hidden,'DS checker');
-  $('#checker-form').elements.checker.value='TEST DS CHECKER';submit('#checker-form');await until(()=>state.session?.checker==='TEST DS CHECKER','DS checker saved');
+  await (async () => {
+    const {state} = await import('./js/state.js'); const {Database} = await import('./js/database.js');
+    const db = await Database.open();
+    const cache = {id:'checkers',syncedAt:new Date().toISOString(),values:[{checker_id:'CHK-test-picker',name:'TEST DS CHECKER',is_active:true,version:1,request_id:''}]};
+    await db.put('cache',cache); db.db.close(); state.checkerCache = cache;
+    document.querySelector('#choose-checkers').click();
+    for (const input of document.querySelectorAll('#checker-body input[type=checkbox]')) input.checked = input.dataset.index === '0';
+    document.querySelector('#checker-ok').click();
+  })();await until(()=>state.session?.checker==='TEST DS CHECKER','DS checker saved');
   location.hash='operasional';await until(()=>!$('#view-operasional').hidden,'new DS input');
   const choose=(kind)=>{const el=$(`#entry-form [data-mapping="${kind}"]`);el.value=[...el.options].find(o=>o.value)?.value;el.dispatchEvent(new Event('change',{bubbles:true}));};
   const dtCases=['820','SAP_821','OTHER_822','823','824','825','826'];
@@ -437,7 +455,7 @@
   const registration = await navigator.serviceWorker.getRegistration();
   equal(registration.scope, location.origin + '/RKEF-Ticketing/', 'unchanged Pages worker scope');
   await until(()=>!!navigator.serviceWorker.controller,'service worker control');
-  const cache=await caches.open('rkef-shell-v1.1.1-report-piles');const entries=await cache.keys();
+  const cache=await caches.open('rkef-shell-v1.1.1-total-reset');const entries=await cache.keys();
   assert(entries.length>20,'offline shell incomplete');assert(entries.every(r=>r.url.startsWith(location.origin+'/RKEF-Ticketing/')),'external responses cached');
   results.push('PASS existing session/local masters, save, correction, stored-number Report TSV, manual draft persistence and 360px layout');
   results.push('PASS scoped PWA shell cached under /RKEF-Ticketing/; no Sheets responses cached');

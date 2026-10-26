@@ -11,6 +11,7 @@
 | Development | [Instruksi implementasi Codex](development/CODEX_ONE_SHOT_PROMPT.md) | Scope dan batas implementasi lokal |
 | Development | [Setup VS Code dan development](development/SETUP_VSCODE_GITHUB.md) | Perintah lokal dan konfigurasi editor |
 | Development | [Apps Script dan hosting](development/SETUP_APPS_SCRIPT_GITHUB.md) | Kontrak bridge, konfigurasi publik, dan gate integrasi |
+| Development | [API Checker](development/CHECKER_API.md) | Schema Checker_Crew, mutasi anonim dan read-back |
 | Testing | [Hasil pengujian lokal](testing/LOCAL_TEST_RESULTS.md) | Bukti tes otomatis, QA, dan batas verifikasi |
 | Architecture | [Struktur proyek](architecture/PROJECT_STRUCTURE.md) | Aplikasi root, dokumentasi, storage, dan batas hosting |
 
